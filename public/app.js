@@ -4,7 +4,8 @@ const state = {
   anchor: addDays(new Date(), -3),
   tour: "all",
   query: "",
-  matches: []
+  matches: [],
+  initialDateResolved: false
 };
 
 const els = {
@@ -89,6 +90,14 @@ async function loadMatches() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     state.matches = payload.matches || [];
+    if (!state.initialDateResolved && !state.matches.length && payload.suggestedDate) {
+      state.initialDateResolved = true;
+      state.date = payload.suggestedDate;
+      state.anchor = addDays(parseDate(payload.suggestedDate), -3);
+      renderDates();
+      return loadMatches();
+    }
+    state.initialDateResolved = true;
   } catch {
     state.matches = demoMatches().filter((match) => {
       const matchesTour = state.tour === "all" || match.tour === state.tour || (state.tour === "slam" && match.level === "Grand Slam");

@@ -43,7 +43,7 @@ npm run dev
 | `WORKER_SYNC_URL` | Worker 的写入接口，例如 `https://tennis-flow.example.workers.dev/api/sync` |
 | `SYNC_TOKEN` | Worker 与 GitHub Actions 共用的随机长密钥 |
 
-任务按北京时间每天 `01:17、07:17、13:17、19:17` 执行，也可以在 Actions 页面手动运行。工作流会下载最新 Parquet 发布文件、规范化最近一天到未来七天的数据，再通过受保护接口写入 D1。
+任务按北京时间每天 `01:17、07:17、13:17、19:17` 执行，也可以在 Actions 页面手动运行。工作流会下载最新 Parquet 发布文件、优先规范化最近一天到未来七天的数据，再通过受保护接口写入 D1；如果来源暂无当前日期数据，则保留并展示来源中最近一周的真实赛果。
 
 ### 标准数据格式
 

@@ -67,7 +67,10 @@ def main():
         tournaments_path = Path(temp) / "tournaments.parquet"
         download(assets["matches.parquet"], matches_path)
         download(assets["tournaments.parquet"], tournaments_path)
-        rows = duckdb.connect().execute(
+        connection = duckdb.connect()
+
+        def select_rows(start: str, end: str):
+            return connection.execute(
             """
             SELECT m.date, m.match_id, m.tournament_id, m.tournament_name,
                    upper(m.tour), m.round, m.player1_id, m.player1_name,
@@ -80,9 +83,28 @@ def main():
               AND list_count(m.player1_name) = 1
               AND list_count(m.player2_name) = 1
             ORDER BY m.date, m.tournament_name, m.round
+            LIMIT 300
             """,
-            [str(matches_path), str(tournaments_path), date_from, date_to],
-        ).fetchall()
+            [str(matches_path), str(tournaments_path), start, end],
+            ).fetchall()
+
+        rows = select_rows(date_from, date_to)
+        if not rows:
+            latest_date = connection.execute(
+                """
+                SELECT max(date)
+                FROM read_parquet(?)
+                WHERE upper(tour) IN ('ATP', 'WTA')
+                  AND list_count(player1_name) = 1
+                  AND list_count(player2_name) = 1
+                """,
+                [str(matches_path)],
+            ).fetchone()[0]
+            if latest_date:
+                date_to = latest_date.isoformat()
+                date_from = (latest_date - timedelta(days=7)).isoformat()
+                rows = select_rows(date_from, date_to)
+        connection.close()
 
     normalized = []
     for row in rows:

@@ -43,10 +43,11 @@ export default {
     }
 
     if (url.pathname === "/api/health") {
-      const sync = await env.DB.prepare(
-        "SELECT finished_at, status, source, imported_count FROM sync_runs ORDER BY id DESC LIMIT 1"
-      ).first();
-      return json({ ok: true, database: "connected", lastSync: sync || null });
+      const [sync, availability] = await Promise.all([
+        env.DB.prepare("SELECT finished_at, status, source, imported_count FROM sync_runs ORDER BY id DESC LIMIT 1").first(),
+        env.DB.prepare("SELECT min(match_date) AS firstDate, max(match_date) AS latestDate FROM matches WHERE source_url IS NOT NULL").first()
+      ]);
+      return json({ ok: true, database: "connected", lastSync: sync || null, availability });
     }
 
     if (url.pathname === "/api/matches") {
@@ -83,7 +84,12 @@ export default {
         stats: safeParse(row.stats, null),
         winner: row.winnerPlayerId === row.player1Id ? 1 : row.winnerPlayerId === row.player2Id ? 2 : null
       }));
-      return json({ date, timezone: "Asia/Shanghai", matches });
+      let suggestedDate = null;
+      if (!matches.length) {
+        const nearest = await env.DB.prepare("SELECT match_date AS date FROM matches WHERE source_url IS NOT NULL ORDER BY abs(julianday(match_date) - julianday(?1)) LIMIT 1").bind(date).first();
+        suggestedDate = nearest?.date || null;
+      }
+      return json({ date, timezone: "Asia/Shanghai", matches, suggestedDate });
     }
 
     if (url.pathname.startsWith("/api/")) return json({ error: "接口不存在" }, 404);
