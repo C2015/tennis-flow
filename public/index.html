@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071b16">
+  <meta name="description" content="按北京时间浏览 ATP、WTA 与大满贯赛程及完赛比分。">
+  <title>球序 · 网球赛程时间流</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;800&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="court-lines" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="球序首页">
+      <span class="brand-ball"></span>
+      <span>球序</span>
+      <small>TENNIS FLOW</small>
+    </a>
+    <div class="header-actions">
+      <span class="timezone">UTC+8 · 北京时间</span>
+      <button class="icon-button" id="searchButton" aria-label="搜索球员或赛事">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow"><span></span> 每 6 小时更新</div>
+      <h1>今天，<br><em>谁在场上？</em></h1>
+      <p>ATP、WTA 与大满贯赛程，按时间自然展开。</p>
+      <div class="hero-orbit" aria-hidden="true"><i></i></div>
+    </section>
+
+    <section class="scoreboard" aria-label="赛事查询">
+      <div class="date-heading">
+        <div>
+          <span id="dateYear">2026</span>
+          <strong id="dateTitle">9月5日</strong>
+          <small id="dateLabel">星期六 · 今天</small>
+        </div>
+        <button class="today-button" id="todayButton">回到今天</button>
+      </div>
+
+      <div class="date-strip-wrap">
+        <button class="date-arrow" id="prevDates" aria-label="前五天">←</button>
+        <div class="date-strip" id="dateStrip" role="tablist" aria-label="选择日期"></div>
+        <button class="date-arrow" id="nextDates" aria-label="后五天">→</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="filters" id="filters" aria-label="赛事类型筛选">
+          <button class="filter active" data-tour="all">全部</button>
+          <button class="filter" data-tour="slam">大满贯</button>
+          <button class="filter" data-tour="ATP">ATP</button>
+          <button class="filter" data-tour="WTA">WTA</button>
+        </div>
+        <span class="match-count" id="matchCount">读取中…</span>
+      </div>
+
+      <div class="search-panel" id="searchPanel" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+        <input id="searchInput" type="search" placeholder="搜索球员或赛事" autocomplete="off">
+        <button id="clearSearch" aria-label="清除搜索">×</button>
+      </div>
+
+      <div class="timeline" id="timeline" aria-live="polite"></div>
+      <div class="loading" id="loading"><span></span><span></span><span></span></div>
+      <div class="empty-state" id="emptyState" hidden>
+        <div class="empty-ball"></div>
+        <h2>这一天暂时没有比赛</h2>
+        <p>试试相邻日期，或清除当前筛选。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div><span class="status-dot"></span><span id="syncStatus">正在检查数据状态</span></div>
+    <p>非商业网球数据项目 · 比赛时间可能因现场安排调整</p>
+  </footer>
+
+  <dialog class="match-dialog" id="matchDialog">
+    <button class="dialog-close" id="dialogClose" aria-label="关闭">×</button>
+    <div id="dialogContent"></div>
+  </dialog>
+
+  <template id="tournamentTemplate">
+    <section class="tournament-group">
+      <header class="tournament-header">
+        <div class="tour-mark"></div>
+        <div><span class="tour-level"></span><h2 class="tour-name"></h2></div>
+        <span class="tour-meta"></span>
+      </header>
+      <div class="match-list"></div>
+    </section>
+  </template>
+
+  <script defer src="./app.js"></script>
+</body>
+</html>

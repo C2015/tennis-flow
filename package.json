@@ -1,0 +1,17 @@
+{
+  "name": "tennis-flow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build:embedded": "node scripts/build-embedded-worker.mjs",
+    "db:init:local": "wrangler d1 execute tennis-flow-db --local --file=db/schema.sql && wrangler d1 execute tennis-flow-db --local --file=db/seed.sql",
+    "db:init:remote": "wrangler d1 execute tennis-flow-db --remote --file=db/schema.sql && wrangler d1 execute tennis-flow-db --remote --file=db/seed.sql",
+    "check": "node scripts/check.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.35.0"
+  }
+}
