@@ -2,7 +2,7 @@
 
 面向手机端的 ATP、WTA 与大满贯赛程时间流。网站使用 Cloudflare Workers 托管静态页面和 API，D1 保存比赛数据，GitHub Actions 每 6 小时执行一次增量同步。
 
-比赛数据来自 ESPN Tennis 的公开赛程页面。采集器只处理 ATP/WTA 单打，并保留数据来源；球员中文名使用 Wikidata 的标准简体中文标签并在 Actions 中缓存。时间、场地、排名和技术统计在来源缺失时显示为“待定”或“暂无”。数据库种子仅用于首次部署前预览。
+比赛数据来自 ESPN Tennis 的公开赛程页面。采集器只处理 ATP/WTA 单打，并保留数据来源；球员中文名使用 Wikidata 中文标签与常用简体译名校正，并在 Actions 中缓存。时间、场地、排名和技术统计在来源缺失时显示为“待定”或“暂无”。数据库种子仅用于首次部署前预览。
 
 ## 本地预览
 
@@ -70,8 +70,8 @@ npm run dev
         "country": "美国"
       },
       "players": [
-        { "id": "p1", "name": "球员一", "country": "CHN", "rank": 20 },
-        { "id": "p2", "name": "球员二", "country": "ESP", "rank": 8 }
+        { "id": "p1", "name": "Player One", "nameZh": "球员一", "country": "CHN", "rank": 20 },
+        { "id": "p2", "name": "Player Two", "nameZh": "球员二", "country": "ESP", "rank": 8 }
       ],
       "winnerId": null,
       "score": null,
