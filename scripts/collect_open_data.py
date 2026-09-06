@@ -1,162 +1,160 @@
-"""Normalize the latest Open Tennis Data v3 preview for Tennis Flow."""
+"""Collect current ATP/WTA singles schedules and results from ESPN scoreboards."""
 
 from __future__ import annotations
 
 import json
 import re
-import tempfile
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import duckdb
-
-REPO = "ryantjx/tennis-match-data"
-RELEASES_API = f"https://api.github.com/repos/{REPO}/releases?per_page=20"
-HEADERS = {"Accept": "application/vnd.github+json", "User-Agent": "TennisFlow/0.1"}
+TIMEZONE = ZoneInfo("Asia/Shanghai")
+SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/tennis/{tour}/scoreboard?dates={date}"
+HEADERS = {"Accept": "*/*", "User-Agent": "curl/8.7.1"}
 
 
-def get_json(url: str):
+def get_json(item):
+    requested_tour, url = item
     request = urllib.request.Request(url, headers=HEADERS)
     with urllib.request.urlopen(request, timeout=30) as response:
-        return json.load(response)
+        return requested_tour, json.load(response)
 
 
-def download(url: str, destination: Path):
-    request = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(request, timeout=60) as response:
-        destination.write_bytes(response.read())
+def country_code(competitor):
+    href = competitor.get("athlete", {}).get("flag", {}).get("href", "")
+    match = re.search(r"/([a-z]{3})\.png(?:\?|$)", href, re.IGNORECASE)
+    return match.group(1).upper() if match else None
 
 
-def first(value):
-    if isinstance(value, (list, tuple)):
-        return str(value[0]) if value else None
-    return str(value) if value is not None else None
+def status_name(competition):
+    status = competition.get("status", {}).get("type", {})
+    description = status.get("description", "").lower()
+    if status.get("state") == "post" or status.get("completed"):
+        return "finished"
+    if "cancel" in description or "abandon" in description:
+        return "cancelled"
+    if "postpon" in description or "suspend" in description:
+        return "postponed"
+    return "scheduled"
 
 
-def parse_sets(score: str | None):
-    if not score:
-        return []
-    result = []
-    for token in score.split():
-        match = re.match(r"^(\d+)-(\d+)", token)
-        if match:
-            result.append({"p1": int(match.group(1)), "p2": int(match.group(2))})
-    return result
+def score_data(players):
+    maximum = max((len(player.get("linescores", [])) for player in players), default=0)
+    sets = []
+    for index in range(maximum):
+        values = []
+        for player in players:
+            lines = player.get("linescores", [])
+            value = lines[index].get("value") if index < len(lines) else None
+            values.append(int(value) if isinstance(value, (int, float)) else None)
+        if values[0] is not None and values[1] is not None:
+            sets.append({"p1": values[0], "p2": values[1]})
+    score = " ".join(f"{item['p1']}-{item['p2']}" for item in sets) or None
+    return score, sets
+
+
+def source_link(event):
+    for link in event.get("links", []):
+        if "summary" in link.get("rel", []):
+            return link.get("href")
+    return "https://www.espn.com/tennis/scoreboard"
+
+
+def normalize(payload, start_date, end_date, requested_tour):
+    matches = {}
+    for event in payload.get("events", []):
+        event_name = event.get("name") or event.get("shortName") or "Tennis"
+        venue_name = event.get("venue", {}).get("displayName") or ""
+        city, _, country = venue_name.partition(",")
+        for group in event.get("groupings", []):
+            slug = group.get("grouping", {}).get("slug")
+            if slug not in ("mens-singles", "womens-singles"):
+                continue
+            tour = "ATP" if slug == "mens-singles" else "WTA"
+            if tour != requested_tour:
+                continue
+            draw_name = "男单" if tour == "ATP" else "女单"
+            for competition in group.get("competitions", []):
+                competition_id = str(competition.get("id") or "")
+                competitors = sorted(competition.get("competitors", []), key=lambda item: item.get("order", 99))
+                if not competition_id or len(competitors) != 2:
+                    continue
+                try:
+                    local_start = datetime.fromisoformat(competition["date"].replace("Z", "+00:00")).astimezone(TIMEZONE)
+                except (KeyError, ValueError):
+                    continue
+                if not start_date <= local_start.date() <= end_date:
+                    continue
+
+                players = []
+                for index, competitor in enumerate(competitors):
+                    athlete = competitor.get("athlete", {})
+                    name = athlete.get("displayName") or athlete.get("fullName") or "TBD"
+                    raw_id = str(competitor.get("id") or athlete.get("id") or "")
+                    player_id = f"espn-{raw_id}" if raw_id and not raw_id.startswith("-") else f"espn-tbd-{competition_id}-{index + 1}"
+                    players.append({
+                        "id": player_id,
+                        "name": name,
+                        "country": country_code(competitor),
+                        "rank": competitor.get("curatedRank", {}).get("current"),
+                    })
+                if any(player["name"].upper() == "TBD" for player in players):
+                    continue
+
+                score, set_scores = score_data(competitors)
+                winner_id = next((players[index]["id"] for index, item in enumerate(competitors) if item.get("winner")), None)
+                time_value = local_start.strftime("%H:%M") if competition.get("timeValid") else None
+                level = "Grand Slam" if event.get("major") else "Tour"
+                matches[f"espn-{competition_id}"] = {
+                    "id": f"espn-{competition_id}",
+                    "date": local_start.date().isoformat(),
+                    "time": time_value,
+                    "status": status_name(competition),
+                    "round": competition.get("round", {}).get("displayName"),
+                    "court": competition.get("venue", {}).get("court") or None,
+                    "bestOf": competition.get("format", {}).get("regulation", {}).get("periods") or 3,
+                    "tournament": {
+                        "id": f"espn-{event.get('id')}-{tour.lower()}",
+                        "name": f"{event_name} · {draw_name}",
+                        "tour": tour,
+                        "level": level,
+                        "surface": None,
+                        "city": city.strip() or None,
+                        "country": country.strip() or None,
+                    },
+                    "players": players,
+                    "winnerId": winner_id,
+                    "score": score,
+                    "setScores": set_scores,
+                    "stats": None,
+                    "sourceUrl": source_link(event),
+                }
+    return matches
 
 
 def main():
-    releases = get_json(RELEASES_API)
-    release = next(
-        (item for item in releases if not item["draft"] and item["tag_name"].startswith("data-v3-")),
-        None,
-    )
-    if not release:
-        raise RuntimeError("No Open Tennis Data v3 release found")
-    assets = {asset["name"]: asset["browser_download_url"] for asset in release["assets"]}
-    if "matches.parquet" not in assets or "tournaments.parquet" not in assets:
-        raise RuntimeError("Release is missing required Parquet assets")
+    now = datetime.now(TIMEZONE)
+    start_date = now.date() - timedelta(days=1)
+    end_date = now.date() + timedelta(days=7)
+    dates = [(start_date + timedelta(days=offset)).strftime("%Y%m%d") for offset in range(9)]
+    requests = [
+        (tour.upper(), SCOREBOARD.format(tour=tour, date=date))
+        for date in dates for tour in ("atp", "wta")
+    ]
 
-    now = datetime.now(ZoneInfo("Asia/Shanghai"))
-    date_from = (now.date() - timedelta(days=1)).isoformat()
-    date_to = (now.date() + timedelta(days=7)).isoformat()
+    collected = {}
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        for requested_tour, payload in executor.map(get_json, requests):
+            collected.update(normalize(payload, start_date, end_date, requested_tour))
 
-    with tempfile.TemporaryDirectory() as temp:
-        matches_path = Path(temp) / "matches.parquet"
-        tournaments_path = Path(temp) / "tournaments.parquet"
-        download(assets["matches.parquet"], matches_path)
-        download(assets["tournaments.parquet"], tournaments_path)
-        connection = duckdb.connect()
-
-        def select_rows(start: str, end: str):
-            return connection.execute(
-            """
-            SELECT m.date, m.match_id, m.tournament_id, m.tournament_name,
-                   upper(m.tour), m.round, m.player1_id, m.player1_name,
-                   m.player2_id, m.player2_name, m.winner_id, m.status,
-                   m.score, m.best_of, t.level, t.surface, t.city, t.country
-            FROM read_parquet(?) m
-            LEFT JOIN read_parquet(?) t USING (tournament_id, tour, year)
-            WHERE m.date BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
-              AND upper(m.tour) IN ('ATP', 'WTA')
-              AND list_count(m.player1_name) = 1
-              AND list_count(m.player2_name) = 1
-            ORDER BY m.date, m.tournament_name, m.round
-            LIMIT 300
-            """,
-            [str(matches_path), str(tournaments_path), start, end],
-            ).fetchall()
-
-        rows = select_rows(date_from, date_to)
-        if not rows:
-            latest_date = connection.execute(
-                """
-                SELECT max(date)
-                FROM read_parquet(?)
-                WHERE upper(tour) IN ('ATP', 'WTA')
-                  AND list_count(player1_name) = 1
-                  AND list_count(player2_name) = 1
-                """,
-                [str(matches_path)],
-            ).fetchone()[0]
-            if latest_date:
-                date_to = latest_date.isoformat()
-                date_from = (latest_date - timedelta(days=7)).isoformat()
-                rows = select_rows(date_from, date_to)
-        connection.close()
-
-    normalized = []
-    for row in rows:
-        (date, match_id, tournament_id, tournament_name, tour, round_name,
-         p1_id, p1_name, p2_id, p2_name, winner_id, status, score, best_of,
-         level, surface, city, country) = row
-        first_id, second_id = first(p1_id), first(p2_id)
-        first_name, second_name = first(p1_name), first(p2_name)
-        if not all((date, match_id, tournament_id, first_id, second_id, first_name, second_name)):
-            continue
-        mapped_status = (
-            "scheduled" if status == "fixture"
-            else "cancelled" if status in ("cancelled", "abandoned")
-            else "finished"
-        )
-        normalized.append({
-            "id": match_id,
-            "date": date.isoformat(),
-            "time": None,
-            "status": mapped_status,
-            "round": round_name,
-            "court": None,
-            "bestOf": best_of or 3,
-            "tournament": {
-                "id": tournament_id,
-                "name": tournament_name,
-                "tour": tour,
-                "level": level or "Tour",
-                "surface": surface,
-                "city": city,
-                "country": country,
-            },
-            "players": [
-                {"id": first_id, "name": first_name, "country": None, "rank": None},
-                {"id": second_id, "name": second_name, "country": None, "rank": None},
-            ],
-            "winnerId": first(winner_id),
-            "score": score,
-            "setScores": parse_sets(score),
-            "stats": None,
-            "sourceUrl": release["html_url"],
-        })
-
-    output = {
-        "source": "Open Tennis Data v3 preview",
-        "updatedAt": release["published_at"],
-        "matches": normalized,
-    }
+    matches = sorted(collected.values(), key=lambda item: (item["date"], item["time"] or "99:99", item["id"]))[:300]
+    output = {"source": "ESPN Tennis scoreboard", "updatedAt": now.isoformat(), "matches": matches}
     output_path = Path(".sync/feed.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")
-    print(f"Prepared {len(normalized)} matches from {release['tag_name']} ({date_from}..{date_to})")
+    print(f"Prepared {len(matches)} current matches from ESPN ({start_date}..{end_date})")
 
 
 if __name__ == "__main__":

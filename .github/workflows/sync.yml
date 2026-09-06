@@ -3,7 +3,6 @@ name: Sync tennis data
 on:
   schedule:
     - cron: "17 1,7,13,19 * * *"
-      timezone: "Asia/Shanghai"
   workflow_dispatch:
 
 concurrency:
@@ -24,9 +23,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install collector dependency
-        run: python -m pip install --disable-pip-version-check duckdb==1.4.0
-      - name: Collect permitted open data
+      - name: Collect current tennis data
         run: python scripts/collect_open_data.py
       - name: Write normalized data to Cloudflare D1
         run: node scripts/sync.mjs

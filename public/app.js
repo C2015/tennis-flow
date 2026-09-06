@@ -155,8 +155,9 @@ function playerRow(name, country, rank, winner) {
 
 function openMatch(match) {
   const stats = match.stats;
+  const sourceName = match.sourceUrl?.includes("espn.com") ? "ESPN Tennis" : "开放网球数据";
   const sourceNote = match.sourceUrl
-    ? `<p class="demo-note">数据来自 <a href="${escapeHTML(match.sourceUrl)}" target="_blank" rel="noreferrer">Open Tennis Data v3</a>。开赛时间、场地、排名和技术统计仅在来源提供时展示。</p>`
+    ? `<p class="demo-note">数据来自 <a href="${escapeHTML(match.sourceUrl)}" target="_blank" rel="noreferrer">${sourceName}</a>。开赛时间、场地、排名和技术统计仅在来源提供时展示。</p>`
     : `<p class="demo-note">这是一条本地演示记录，仅用于界面预览，不代表真实赛程或赛果。</p>`;
   els.dialogContent.innerHTML = `
     <div class="dialog-hero">
