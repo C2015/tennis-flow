@@ -4,6 +4,12 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-09-05",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "scores.tennisdrills.org",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
