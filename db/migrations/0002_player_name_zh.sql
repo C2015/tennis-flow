@@ -1,0 +1,1 @@
+ALTER TABLE players ADD COLUMN name_zh TEXT;

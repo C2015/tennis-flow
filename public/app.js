@@ -1,4 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
+const prefersChinese = (navigator.languages || [navigator.language || ""]).some((language) => language.toLowerCase().startsWith("zh"));
 const state = {
   date: localISODate(new Date()),
   anchor: addDays(new Date(), -3),
@@ -101,7 +102,7 @@ async function loadMatches() {
   } catch {
     state.matches = demoMatches().filter((match) => {
       const matchesTour = state.tour === "all" || match.tour === state.tour || (state.tour === "slam" && match.level === "Grand Slam");
-      const haystack = `${match.player1} ${match.player2} ${match.tournament}`.toLowerCase();
+      const haystack = `${match.player1} ${match.player1Zh || ""} ${match.player2} ${match.player2Zh || ""} ${match.tournament}`.toLowerCase();
       return match.date === state.date && matchesTour && haystack.includes(state.query.toLowerCase());
     });
     els.sync.textContent = "本地预览 · 演示数据";
@@ -141,20 +142,23 @@ function matchCard(match) {
   card.innerHTML = `
     <span class="match-time"><strong>${escapeHTML(match.time || "待定")}</strong><small>${match.status === "finished" ? "已完赛" : escapeHTML(match.round || "赛程")}</small></span>
     <span class="players">
-      ${playerRow(match.player1, match.player1Country, match.player1Rank, match.winner === 1)}
-      ${playerRow(match.player2, match.player2Country, match.player2Rank, match.winner === 2)}
+      ${playerRow(match.player1, match.player1Zh, match.player1Country, match.player1Rank, match.winner === 1)}
+      ${playerRow(match.player2, match.player2Zh, match.player2Country, match.player2Rank, match.winner === 2)}
     </span>
     ${sets}<span class="chevron">›</span>`;
   card.addEventListener("click", () => openMatch(match));
   return card;
 }
 
-function playerRow(name, country, rank, winner) {
-  return `<span class="player-row"><small class="flag">${escapeHTML(country || "—")}</small><span class="player ${winner ? "winner" : ""}">${escapeHTML(name)}</span><small class="rank">${rank ? `#${rank}` : "—"}</small></span>`;
+function playerRow(name, nameZh, country, rank, winner) {
+  const display = playerDisplay(name, nameZh);
+  return `<span class="player-row"><small class="flag">${escapeHTML(country || "—")}</small><span class="player ${winner ? "winner" : ""}"><span class="player-primary">${escapeHTML(display.primary)}</span>${display.secondary ? `<small class="player-secondary">${escapeHTML(display.secondary)}</small>` : ""}</span><small class="rank">${rank ? `#${rank}` : "—"}</small></span>`;
 }
 
 function openMatch(match) {
   const stats = match.stats;
+  const player1 = playerDisplay(match.player1, match.player1Zh);
+  const player2 = playerDisplay(match.player2, match.player2Zh);
   const sourceName = match.sourceUrl?.includes("espn.com") ? "ESPN Tennis" : "开放网球数据";
   const sourceNote = match.sourceUrl
     ? `<p class="demo-note">数据来自 <a href="${escapeHTML(match.sourceUrl)}" target="_blank" rel="noreferrer">${sourceName}</a>。开赛时间、场地、排名和技术统计仅在来源提供时展示。</p>`
@@ -164,9 +168,9 @@ function openMatch(match) {
       <span class="dialog-kicker">${escapeHTML(match.tour)} · ${escapeHTML(match.level)} · ${escapeHTML(match.round || "")}</span>
       <h2>${escapeHTML(match.tournament)}</h2>
       <div class="dialog-players">
-        <div class="dialog-player"><strong>${escapeHTML(match.player1)}</strong><span>${escapeHTML(match.player1Country || "—")} · ${match.player1Rank ? `世界 #${match.player1Rank}` : "暂无排名"}</span></div>
+        <div class="dialog-player"><strong>${escapeHTML(player1.primary)}</strong>${player1.secondary ? `<small>${escapeHTML(player1.secondary)}</small>` : ""}<span>${escapeHTML(match.player1Country || "—")} · ${match.player1Rank ? `世界 #${match.player1Rank}` : "暂无排名"}</span></div>
         <div class="dialog-score">${escapeHTML(match.score || "VS")}</div>
-        <div class="dialog-player"><strong>${escapeHTML(match.player2)}</strong><span>${escapeHTML(match.player2Country || "—")} · ${match.player2Rank ? `世界 #${match.player2Rank}` : "暂无排名"}</span></div>
+        <div class="dialog-player"><strong>${escapeHTML(player2.primary)}</strong>${player2.secondary ? `<small>${escapeHTML(player2.secondary)}</small>` : ""}<span>${escapeHTML(match.player2Country || "—")} · ${match.player2Rank ? `世界 #${match.player2Rank}` : "暂无排名"}</span></div>
       </div>
     </div>
     <div class="dialog-body">
@@ -187,6 +191,7 @@ function openMatch(match) {
 
 const fact = (label, value) => `<div class="fact"><span>${label}</span><strong>${escapeHTML(value)}</strong></div>`;
 const stat = (label, values = ["—", "—"], suffix = "") => `<div class="stat-row"><strong>${values?.[0] ?? "—"}${suffix}</strong><label>${label}</label><strong>${values?.[1] ?? "—"}${suffix}</strong></div>`;
+const playerDisplay = (name, nameZh) => prefersChinese && nameZh ? { primary: nameZh, secondary: name } : { primary: name, secondary: null };
 
 async function loadHealth() {
   try {

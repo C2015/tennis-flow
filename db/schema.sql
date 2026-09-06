@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
 CREATE TABLE IF NOT EXISTS players (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  name_zh TEXT,
   country_code TEXT
 );
 

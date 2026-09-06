@@ -31,7 +31,7 @@ export default {
         for (const event of feed.matches.slice(start, start + 30)) {
           statements.push(env.DB.prepare("INSERT INTO tournaments (id,name,tour,level,surface,city,country,featured) VALUES (?1,?2,?3,?4,?5,?6,?7,?8) ON CONFLICT(id) DO UPDATE SET name=excluded.name,tour=excluded.tour,level=excluded.level,surface=excluded.surface,city=excluded.city,country=excluded.country,featured=excluded.featured").bind(event.tournament.id,event.tournament.name,event.tournament.tour,event.tournament.level,event.tournament.surface||null,event.tournament.city||null,event.tournament.country||null,event.tournament.level === "Grand Slam" ? 1 : 0));
           for (const player of event.players) {
-            statements.push(env.DB.prepare("INSERT INTO players (id,name,country_code) VALUES (?1,?2,?3) ON CONFLICT(id) DO UPDATE SET name=excluded.name,country_code=excluded.country_code").bind(player.id,player.name,player.country||null));
+            statements.push(env.DB.prepare("INSERT INTO players (id,name,name_zh,country_code) VALUES (?1,?2,?3,?4) ON CONFLICT(id) DO UPDATE SET name=excluded.name,name_zh=coalesce(excluded.name_zh,players.name_zh),country_code=excluded.country_code").bind(player.id,player.name,player.nameZh||null,player.country||null));
           }
           statements.push(env.DB.prepare("INSERT INTO matches (id,tournament_id,match_date,start_time,status,round,court,best_of,player1_id,player2_id,player1_rank,player2_rank,winner_player_id,score,set_scores,stats,source_url,source_updated_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET tournament_id=excluded.tournament_id,match_date=excluded.match_date,start_time=excluded.start_time,status=excluded.status,round=excluded.round,court=excluded.court,best_of=excluded.best_of,player1_id=excluded.player1_id,player2_id=excluded.player2_id,player1_rank=excluded.player1_rank,player2_rank=excluded.player2_rank,winner_player_id=excluded.winner_player_id,score=excluded.score,set_scores=excluded.set_scores,stats=excluded.stats,source_url=excluded.source_url,source_updated_at=excluded.source_updated_at,updated_at=CURRENT_TIMESTAMP").bind(event.id,event.tournament.id,event.date,event.time||null,event.status,event.round||null,event.court||null,event.bestOf||3,event.players[0].id,event.players[1].id,event.players[0].rank||null,event.players[1].rank||null,event.winnerId||null,event.score||null,JSON.stringify(event.setScores||[]),event.stats?JSON.stringify(event.stats):null,event.sourceUrl||null,feed.updatedAt));
           imported += 1;
@@ -65,8 +65,8 @@ export default {
           m.round, m.court, m.best_of AS bestOf, m.score, m.set_scores AS setScores,
           m.stats, m.source_url AS sourceUrl,
           t.name AS tournament, t.tour, t.level, t.surface, t.city, t.country,
-          p1.name AS player1, p1.country_code AS player1Country, m.player1_rank AS player1Rank,
-          p2.name AS player2, p2.country_code AS player2Country, m.player2_rank AS player2Rank,
+          p1.name AS player1, p1.name_zh AS player1Zh, p1.country_code AS player1Country, m.player1_rank AS player1Rank,
+          p2.name AS player2, p2.name_zh AS player2Zh, p2.country_code AS player2Country, m.player2_rank AS player2Rank,
           m.winner_player_id AS winnerPlayerId, m.player1_id AS player1Id, m.player2_id AS player2Id
         FROM matches m
         JOIN tournaments t ON t.id = m.tournament_id
@@ -74,7 +74,7 @@ export default {
         JOIN players p2 ON p2.id = m.player2_id
         WHERE m.match_date = ?1
           AND (?2 = 'ALL' OR t.tour = ?2 OR (?2 = 'SLAM' AND t.level = 'Grand Slam'))
-          AND (?3 = '' OR p1.name LIKE ?4 OR p2.name LIKE ?4 OR t.name LIKE ?4)
+          AND (?3 = '' OR p1.name LIKE ?4 OR p2.name LIKE ?4 OR p1.name_zh LIKE ?4 OR p2.name_zh LIKE ?4 OR t.name LIKE ?4)
         ORDER BY t.featured DESC, t.name, m.start_time, m.id
       `).bind(date, tour, query, term).all();
 

@@ -4,4 +4,5 @@ node_modules/
 .DS_Store
 *.log
 .sync/
+.cache/
 dist/

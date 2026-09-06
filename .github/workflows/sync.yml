@@ -23,6 +23,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Restore Chinese player-name cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/player-names-zh.json
+          key: player-names-zh-${{ github.run_id }}
+          restore-keys: player-names-zh-
       - name: Collect current tennis data
         run: python scripts/collect_open_data.py
       - name: Write normalized data to Cloudflare D1
@@ -30,3 +36,9 @@ jobs:
         env:
           WORKER_SYNC_URL: ${{ secrets.WORKER_SYNC_URL }}
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+      - name: Save Chinese player-name cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/player-names-zh.json
+          key: player-names-zh-${{ github.run_id }}

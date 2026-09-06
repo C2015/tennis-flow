@@ -9,10 +9,31 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from urllib.parse import urlencode
 
 TIMEZONE = ZoneInfo("Asia/Shanghai")
 SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/tennis/{tour}/scoreboard?dates={date}"
 HEADERS = {"Accept": "*/*", "User-Agent": "curl/8.7.1"}
+NAME_CACHE = Path(".cache/player-names-zh.json")
+MANUAL_NAMES = {
+    "Alexander Bublik": "亚历山大·布勃利克",
+    "Amanda Anisimova": "阿曼达·阿尼西莫娃",
+    "Aryna Sabalenka": "阿丽娜·萨巴伦卡",
+    "Benjamin Bonzi": "本雅明·邦齐",
+    "Carlos Alcaraz": "卡洛斯·阿尔卡拉斯",
+    "Coco Gauff": "科科·高芙",
+    "Fiona Ferro": "菲奥娜·费罗",
+    "Iga Swiatek": "伊加·斯维亚特克",
+    "Michael Zheng": "郑瑞",
+    "Mirra Andreeva": "米拉·安德烈耶娃",
+    "Naomi Osaka": "大坂直美",
+    "Rebeka Masarova": "雷贝卡·马萨洛娃",
+    "Sorana Cirstea": "索拉娜·科斯蒂亚",
+    "Stefanos Tsitsipas": "斯特凡诺斯·西西帕斯",
+    "Tommy Paul": "汤米·保罗",
+    "Valentin Vacherot": "瓦朗坦·瓦舍罗",
+    "Zheng Qinwen": "郑钦文",
+}
 
 
 def get_json(item):
@@ -60,6 +81,65 @@ def source_link(event):
         if "summary" in link.get("rel", []):
             return link.get("href")
     return "https://www.espn.com/tennis/scoreboard"
+
+
+def wikidata_names(names):
+    values = " ".join(f"{json.dumps(name)}@en" for name in names)
+    query = (
+        "SELECT ?name ?zh WHERE { VALUES ?name { " + values + " } "
+        "{ ?item <http://www.w3.org/2000/01/rdf-schema#label> ?name } UNION "
+        "{ ?item <http://www.w3.org/2004/02/skos/core#altLabel> ?name } "
+        "?item <http://www.wikidata.org/prop/direct/P106> <http://www.wikidata.org/entity/Q10833314>. "
+        "?item <http://www.w3.org/2000/01/rdf-schema#label> ?zh. "
+        'FILTER(LANG(?zh)="zh-cn" || LANG(?zh)="zh-hans" || LANG(?zh)="zh") }'
+    )
+    body = urlencode({"query": query, "format": "json"}).encode()
+    request = urllib.request.Request(
+        "https://query.wikidata.org/sparql",
+        data=body,
+        headers={"Accept": "application/sparql-results+json", "User-Agent": "TennisFlow/0.3 (C2015/tennis-flow)"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            bindings = json.load(response).get("results", {}).get("bindings", [])
+    except Exception as error:
+        print(f"Wikidata batch lookup skipped: {error}")
+        return {}
+    translated = {}
+    language_priority = {"zh": 1, "zh-hans": 2, "zh-cn": 3}
+    for binding in bindings:
+        name = binding.get("name", {}).get("value")
+        label = binding.get("zh", {}).get("value")
+        language = binding.get("zh", {}).get("xml:lang", "zh")
+        if not name or not label:
+            continue
+        previous = translated.get(name)
+        if not previous or language_priority.get(language, 0) > previous[0]:
+            translated[name] = (language_priority.get(language, 0), label)
+    return {name: value[1] for name, value in translated.items()}
+
+
+def enrich_chinese_names(matches):
+    cache = {}
+    if NAME_CACHE.exists():
+        try:
+            cache = json.loads(NAME_CACHE.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            cache = {}
+    names = sorted({player["name"] for match in matches for player in match["players"]})
+    cache.update(MANUAL_NAMES)
+    unknown = [name for name in names if not cache.get(name)]
+    if unknown:
+        for start in range(0, len(unknown), 45):
+            cache.update(wikidata_names(unknown[start:start + 45]))
+        for name in unknown:
+            cache.setdefault(name, None)
+        NAME_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        NAME_CACHE.write_text(json.dumps(cache, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+    for match in matches:
+        for player in match["players"]:
+            player["nameZh"] = cache.get(player["name"])
+    return sum(bool(cache.get(name)) for name in names), len(names)
 
 
 def normalize(payload, start_date, end_date, requested_tour):
@@ -150,11 +230,12 @@ def main():
             collected.update(normalize(payload, start_date, end_date, requested_tour))
 
     matches = sorted(collected.values(), key=lambda item: (item["date"], item["time"] or "99:99", item["id"]))[:300]
+    translated, total_players = enrich_chinese_names(matches)
     output = {"source": "ESPN Tennis scoreboard", "updatedAt": now.isoformat(), "matches": matches}
     output_path = Path(".sync/feed.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")
-    print(f"Prepared {len(matches)} current matches from ESPN ({start_date}..{end_date})")
+    print(f"Prepared {len(matches)} current matches from ESPN ({start_date}..{end_date}); Chinese names {translated}/{total_players}")
 
 
 if __name__ == "__main__":

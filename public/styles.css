@@ -95,7 +95,9 @@ main { max-width: 1180px; margin: auto; padding: 58px 24px 100px; }
 .match-time small { color: #78827d; font-size: 10px; }
 .player-row { display: grid; grid-template-columns: 30px minmax(0,1fr) 40px; gap: 8px; min-height: 28px; align-items: center; }
 .flag { color: #78827d; font: 500 9px/1 "Oswald", sans-serif; letter-spacing: .04em; }
-.player { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.player { min-width: 0; overflow: hidden; font-size: 14px; line-height: 1.1; }
+.player-primary, .player-secondary { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-secondary { color: #818984; font: 400 9px/1.2 "Oswald", sans-serif; letter-spacing: .02em; margin-top: 3px; }
 .player.winner { font-weight: 800; }
 .rank { color: #858d88; font-size: 10px; }
 .sets { display: flex; gap: 4px; align-items: stretch; }
@@ -121,7 +123,7 @@ footer div { display: flex; gap: 8px; align-items: center; }.status-dot { width:
 .dialog-kicker { color: var(--lime); font: 500 10px/1 "Oswald", sans-serif; letter-spacing: .12em; }
 .dialog-hero h2 { font-size: 20px; margin: 8px 44px 22px 0; }
 .dialog-players { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; }
-.dialog-player:last-child { text-align: right; }.dialog-player strong { display: block; font-size: 16px; }.dialog-player span { color: #9fb1a9; font-size: 11px; }
+.dialog-player:last-child { text-align: right; }.dialog-player strong { display: block; font-size: 16px; }.dialog-player small { display: block; color: #d4ddd8; font: 400 10px/1.2 "Oswald", sans-serif; margin: 3px 0; }.dialog-player span { color: #9fb1a9; font-size: 11px; }
 .dialog-score { color: var(--lime); font: 600 26px/1 "Oswald", sans-serif; }
 .dialog-body { padding: 26px 28px 30px; }
 .match-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 24px; }
