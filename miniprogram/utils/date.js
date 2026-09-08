@@ -1,1 +1,49 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦þëb–ÏÝj×£±KæÚ±î¸Ø[žé¢Šwâ•ê(º×â•æÛ­æ¤n·š‘éÜ¡×¢ëiºÛ©Š{h–)Þ²‡åzx-†{¦×^r‡^uç(uè§¦ëa…éiv+)•¬­†+&zËè¢ž›­Šznµø¥y×Ÿjém~ŠìµØ§¢‹­¦ëhºÚnµø¥y×Ÿjém~ŠìµÚ.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
+const WEEKDAYS = ["å‘¨æ—¥", "å‘¨ä¸€", "å‘¨äºŒ", "å‘¨ä¸‰", "å‘¨å››", "å‘¨äº”", "å‘¨å…­"];
+
+function beijingToday() {
+  return new Date(Date.now() + BEIJING_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function fromISO(value) {
+  return new Date(`${value}T00:00:00Z`);
+}
+
+function addDays(value, amount) {
+  return new Date(fromISO(value).getTime() + amount * DAY_MS).toISOString().slice(0, 10);
+}
+
+function dayDifference(value, reference = beijingToday()) {
+  return Math.round((fromISO(value).getTime() - fromISO(reference).getTime()) / DAY_MS);
+}
+
+function dateMeta(value) {
+  const date = fromISO(value);
+  const delta = dayDifference(value);
+  return {
+    iso: value,
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+    weekday: WEEKDAYS[date.getUTCDay()],
+    relative: delta === 0 ? "ä»Šå¤©" : delta === -1 ? "æ˜¨å¤©" : delta === 1 ? "æ˜Žå¤©" : "åŒ—äº¬æ—¶é—´"
+  };
+}
+
+function buildDateStrip(anchor, count = 7) {
+  const today = beijingToday();
+  return Array.from({ length: count }, (_, index) => {
+    const meta = dateMeta(addDays(anchor, index));
+    return { ...meta, isToday: meta.iso === today };
+  });
+}
+
+function formatSyncTime(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "åˆšåˆš";
+  const beijing = new Date(date.getTime() + BEIJING_OFFSET_MS);
+  return `${beijing.getUTCMonth() + 1}æœˆ${beijing.getUTCDate()}æ—¥ ${String(beijing.getUTCHours()).padStart(2, "0")}:${String(beijing.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+module.exports = { addDays, beijingToday, buildDateStrip, dateMeta, formatSyncTime };

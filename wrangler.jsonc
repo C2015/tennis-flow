@@ -1,2 +1,34 @@
-m«ëˆ§½©buªàºg§·
-Ú	^®;(Å,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºŞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tennis-flow",
+  "main": "src/worker.js",
+  "workers_dev": true,
+  "compatibility_date": "2026-09-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["3,13,23,33,43,53 * * * *"]
+  },
+  "routes": [
+    {
+      "pattern": "scores.tennisdrills.org",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tennis-flow-db",
+      "database_id": "d7492a73-1a1b-416c-aa35-695d79490eeb"
+    }
+  ]
+}

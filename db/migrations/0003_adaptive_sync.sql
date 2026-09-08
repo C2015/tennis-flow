@@ -1,1 +1,11 @@
-m«ëˆ§½©buªàºg§µÖÿš(+jØ¨žÏôÓMÚuªmŠ÷¬Êw,ªU,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºÞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢ž›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bžŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+CREATE TABLE IF NOT EXISTS adaptive_sync_state (
+  target_key TEXT PRIMARY KEY,
+  last_checked_at TEXT NOT NULL,
+  next_check_at TEXT NOT NULL,
+  last_status TEXT NOT NULL,
+  updated_count INTEGER NOT NULL DEFAULT 0,
+  message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_matches_adaptive_sync
+  ON matches(status, match_date, start_time);

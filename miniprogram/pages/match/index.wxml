@@ -1,1 +1,55 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦ş– zÏæj×!ş)İ{1šU,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºŞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+<view wx:if="{{match}}" class="detail-page safe-bottom">
+  <view class="match-hero">
+    <text class="kicker">{{match.tour}} Â· {{match.level}} Â· {{match.roundText}}</text>
+    <text class="tournament">{{match.tournament}}</text>
+    <view class="status-line"><view></view><text>{{match.statusText}}</text></view>
+
+    <view class="versus">
+      <view class="competitor left">
+        <text class="country">{{match.player1Country || 'â€”'}} Â· {{match.player1Rank ? 'ä¸–ç•Œ #' + match.player1Rank : 'æš‚æ— æ’å'}}</text>
+        <text class="name {{match.winner === 1 ? 'winner' : ''}}">{{match.player1Primary}}</text>
+        <text wx:if="{{match.player1Secondary}}" class="secondary">{{match.player1Secondary}}</text>
+      </view>
+      <view class="score">{{match.score || 'VS'}}</view>
+      <view class="competitor right">
+        <text class="country">{{match.player2Country || 'â€”'}} Â· {{match.player2Rank ? 'ä¸–ç•Œ #' + match.player2Rank : 'æš‚æ— æ’å'}}</text>
+        <text class="name {{match.winner === 2 ? 'winner' : ''}}">{{match.player2Primary}}</text>
+        <text wx:if="{{match.player2Secondary}}" class="secondary">{{match.player2Secondary}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="detail-body">
+    <view class="facts">
+      <view wx:for="{{facts}}" wx:key="label" class="fact">
+        <text>{{item.label}}</text><text class="fact-value">{{item.value}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{match.setScores.length}}" class="section">
+      <view class="section-heading"><text>æ¯ç›˜æ¯”åˆ†</text><text class="section-note">çƒå‘˜ 1 / çƒå‘˜ 2</text></view>
+      <view wx:for="{{match.setScores}}" wx:key="setIndex" class="stat-row">
+        <text class="stat-value {{item.p1Won ? 'accent' : ''}}">{{item.p1}}</text>
+        <text>ç¬¬ {{index + 1}} ç›˜</text>
+        <text class="stat-value {{item.p2Won ? 'accent' : ''}}">{{item.p2}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-heading"><text>æ¯”èµ›æŠ€æœ¯ç»Ÿè®¡</text><text wx:if="{{stats.length}}" class="section-note">çƒå‘˜ 1 / çƒå‘˜ 2</text></view>
+      <view wx:if="{{stats.length}}">
+        <view wx:for="{{stats}}" wx:key="label" class="stat-row">
+          <text class="stat-value">{{item.left}}</text><text>{{item.label}}</text><text class="stat-value">{{item.right}}</text>
+        </view>
+      </view>
+      <view wx:else class="no-stats">
+        {{match.status === 'finished' ? 'æ•°æ®æºæš‚æœªæä¾›æœ¬åœºæŠ€æœ¯ç»Ÿè®¡' : 'æ¯”èµ›ç»“æŸåï¼Œå¦‚æ•°æ®æºæä¾›åˆ™åœ¨è¿™é‡Œæ˜¾ç¤º'}}
+      </view>
+    </view>
+
+    <view class="source-note">
+      <text>å¼€èµ›æ—¶é—´ã€åœºåœ°ã€æ’åå’ŒæŠ€æœ¯ç»Ÿè®¡ä»…åœ¨æ•°æ®æºæä¾›æ—¶å±•ç¤ºã€‚</text>
+      <button wx:if="{{match.sourceUrl}}" bindtap="copySource">å¤åˆ¶ ESPN æ•°æ®æ¥æº</button>
+    </view>
+  </view>
+</view>

@@ -1,1 +1,125 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦ş– zÏíŠg¥Šw¿Šw^Çf•KæÚ±î¸Ø[é¢Šwâ•ê(º×â•æÛ­æ¤n·š‘éÜ¡×¢ëiºÛ©Š{h–)Ş²‡åzx-†{¦×^r‡^uç(uè§¦ëa…éiv+)•¬­†+&zËè¢›­Šznµø¥y×Ÿjém~ŠìµØ§¢‹­¦ëhºÚnµø¥y×Ÿjém~ŠìµÚ.
+<view class="page-shell safe-bottom">
+  <view class="court-lines"></view>
+
+  <view class="hero">
+    <view class="brand-row">
+      <view class="brand"><view class="brand-ball"></view><text>çƒåº</text></view>
+      <text class="timezone">UTC+8 Â· åŒ—äº¬æ—¶é—´</text>
+    </view>
+    <view class="eyebrow"><view></view><text>æŒ‰æ¯”èµ›æ—¶é—´è‡ªç„¶å±•å¼€</text></view>
+    <view class="hero-title">ä»Šå¤©ï¼Œ<text>è°åœ¨åœºä¸Šï¼Ÿ</text></view>
+    <view class="hero-orbit"><view></view></view>
+  </view>
+
+  <view class="scoreboard">
+    <view class="date-heading">
+      <view>
+        <text class="date-year">{{selectedMeta.year}}</text>
+        <view class="date-title">{{selectedMeta.month}}æœˆ{{selectedMeta.day}}æ—¥</view>
+        <text class="date-subtitle">{{selectedMeta.weekday}} Â· {{selectedMeta.relative}}</text>
+      </view>
+      <button class="today-button" bindtap="returnToday">å›åˆ°ä»Šå¤©</button>
+    </view>
+
+    <view class="date-navigator">
+      <button class="date-arrow" data-amount="-5" bindtap="shiftDates">â†</button>
+      <scroll-view class="date-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="date-strip">
+          <button wx:for="{{dateStrip}}" wx:key="iso"
+            class="date-tab {{item.iso === selectedDate ? 'active' : ''}}"
+            data-date="{{item.iso}}" bindtap="selectDate">
+            <text>{{item.weekday}}</text>
+            <text class="date-number">{{item.day < 10 ? '0' + item.day : item.day}}</text>
+            <view wx:if="{{item.isToday}}" class="today-dot"></view>
+          </button>
+        </view>
+      </scroll-view>
+      <button class="date-arrow" data-amount="5" bindtap="shiftDates">â†’</button>
+    </view>
+
+    <view class="toolbar">
+      <scroll-view class="filters" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="filter-row">
+          <button wx:for="{{filters}}" wx:key="value"
+            class="filter {{item.value === currentTour ? 'active' : ''}}"
+            data-value="{{item.value}}" bindtap="selectTour">{{item.label}}</button>
+        </view>
+      </scroll-view>
+      <text class="match-count">{{matchCount}} åœº</text>
+    </view>
+
+    <view class="search-box">
+      <text class="search-icon">âŒ•</text>
+      <input value="{{query}}" placeholder="æœç´¢çƒå‘˜æˆ–èµ›äº‹" confirm-type="search" bindinput="handleSearchInput" />
+      <button wx:if="{{query}}" class="clear-button" bindtap="clearSearch">Ã—</button>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading" aria-label="æ•°æ®åŠ è½½ä¸­">
+      <view></view><view></view><view></view>
+    </view>
+
+    <view wx:elif="{{error}}" class="state-panel">
+      <view class="state-ball error-ball"></view>
+      <text class="state-title">æš‚æ—¶æ²¡æœ‰æ¥åˆ°æ¯”èµ›æ•°æ®</text>
+      <text class="state-copy">{{error}}</text>
+      <button class="retry-button" bindtap="retry">é‡æ–°åŠ è½½</button>
+    </view>
+
+    <view wx:elif="{{!groups.length}}" class="state-panel">
+      <view class="state-ball"></view>
+      <text class="state-title">è¿™ä¸€å¤©æš‚æ—¶æ²¡æœ‰æ¯”èµ›</text>
+      <text class="state-copy">è¯•è¯•ç›¸é‚»æ—¥æœŸï¼Œæˆ–æ¸…é™¤å½“å‰ç­›é€‰ã€‚</text>
+    </view>
+
+    <view wx:else class="timeline">
+      <view class="timeline-line"></view>
+      <view wx:for="{{groups}}" wx:key="id" wx:for-index="groupIndex" class="tournament-group">
+        <view class="tournament-header">
+          <view class="tour-mark"><view></view></view>
+          <view class="tournament-copy">
+            <text class="tour-level">{{item.tour}} Â· {{item.level}}</text>
+            <text class="tour-name">{{item.name}}</text>
+            <text wx:if="{{item.meta}}" class="tour-meta">{{item.meta}}</text>
+          </view>
+        </view>
+
+        <view class="match-list">
+          <button wx:for="{{item.matches}}" wx:key="id" wx:for-item="match" wx:for-index="matchIndex"
+            class="match-card" data-group="{{groupIndex}}" data-match="{{matchIndex}}" bindtap="openMatch">
+            <view class="match-time">
+              <text class="time-value">{{match.timeText}}</text>
+              <text>{{match.status === 'finished' ? match.statusText : match.roundText}}</text>
+            </view>
+            <view class="players">
+              <view class="player-row">
+                <text class="country">{{match.player1Country || 'â€”'}}</text>
+                <view class="player-name {{match.winner === 1 ? 'winner' : ''}}">
+                  <text>{{match.player1Primary}}</text><text wx:if="{{match.player1Secondary}}" class="player-secondary">{{match.player1Secondary}}</text>
+                </view>
+                <text class="rank">{{match.player1RankText}}</text>
+              </view>
+              <view class="player-row">
+                <text class="country">{{match.player2Country || 'â€”'}}</text>
+                <view class="player-name {{match.winner === 2 ? 'winner' : ''}}">
+                  <text>{{match.player2Primary}}</text><text wx:if="{{match.player2Secondary}}" class="player-secondary">{{match.player2Secondary}}</text>
+                </view>
+                <text class="rank">{{match.player2RankText}}</text>
+              </view>
+            </view>
+            <view wx:if="{{match.status === 'finished'}}" class="sets">
+              <view wx:for="{{match.setScores}}" wx:key="setIndex" wx:for-item="set" class="set-score">
+                <text class="{{set.p1Won ? 'won' : ''}}">{{set.p1}}</text>
+                <text class="{{set.p2Won ? 'won' : ''}}">{{set.p2}}</text>
+              </view>
+            </view>
+            <text wx:else class="status-pill">{{match.statusText}}</text>
+            <text class="chevron">â€º</text>
+          </button>
+        </view>
+      </view>
+    </view>
+
+    <view class="data-status"><view></view><text>{{syncText}}</text></view>
+    <text class="project-note">éå•†ä¸šç½‘çƒæ•°æ®é¡¹ç›® Â· æ¯”èµ›æ—¶é—´å¯èƒ½å› ç°åœºå®‰æ’è°ƒæ•´</text>
+  </view>
+</view>

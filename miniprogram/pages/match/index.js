@@ -1,1 +1,58 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦ş– zÏæj×!ş)İ{ìRÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbÚ%Šw¬¡ù^aéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉ²Æ z(§¦ëb›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+const { normalizeMatch } = require("../../utils/match");
+
+Page({
+  data: {
+    match: null,
+    facts: [],
+    stats: []
+  },
+
+  onLoad() {
+    const stored = wx.getStorageSync("tennis-flow:selected-match");
+    if (!stored || !stored.id) {
+      wx.showToast({ title: "æ¯”èµ›ä¿¡æ¯å·²å¤±æ•ˆ", icon: "none" });
+      setTimeout(() => wx.navigateBack(), 800);
+      return;
+    }
+    const match = normalizeMatch(stored);
+    this.setData({
+      match,
+      facts: [
+        { label: "åŒ—äº¬æ—¶é—´", value: `${match.date} ${match.time || "å¾…å®š"}` },
+        { label: "æ¯”èµ›åœºåœ°", value: match.court || "å¾…å…¬å¸ƒ" },
+        { label: "åœºåœ°ç±»å‹", value: match.surface || "å¾…å…¬å¸ƒ" },
+        { label: "èµ›åˆ¶", value: match.bestOf ? `${match.bestOf} ç›˜åˆ¶` : "å¾…å…¬å¸ƒ" }
+      ],
+      stats: this.buildStats(match.stats)
+    });
+  },
+
+  buildStats(stats) {
+    if (!stats) return [];
+    const rows = [
+      ["ACE çƒ", stats.aces],
+      ["åŒè¯¯", stats.doubleFaults],
+      ["ä¸€å‘æˆåŠŸç‡", stats.firstServe, "%"],
+      ["ç ´å‘æˆåŠŸ", stats.breakPoints]
+    ];
+    return rows.filter((row) => Array.isArray(row[1])).map(([label, values, suffix = ""]) => ({
+      label,
+      left: `${values[0] ?? "â€”"}${values[0] == null ? "" : suffix}`,
+      right: `${values[1] ?? "â€”"}${values[1] == null ? "" : suffix}`
+    }));
+  },
+
+  copySource() {
+    const url = this.data.match && this.data.match.sourceUrl;
+    if (!url) return;
+    wx.setClipboardData({ data: url, success: () => wx.showToast({ title: "æ¥æºé“¾æ¥å·²å¤åˆ¶" }) });
+  },
+
+  onShareAppMessage() {
+    const match = this.data.match;
+    return {
+      title: match ? `${match.player1Primary} vs ${match.player2Primary} Â· çƒåº` : "çƒåº Â· ç½‘çƒèµ›ç¨‹",
+      path: "/pages/timeline/index"
+    };
+  }
+});

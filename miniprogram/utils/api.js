@@ -1,1 +1,33 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦þëb–ÏÚ¦(ìRÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbžÚ%Šw¬¡ù^žažéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉž²Æ z(§¦ëbž›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+const API_BASE = "https://scores.tennisdrills.org";
+
+function request(path, data = {}) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: `${API_BASE}${path}`,
+      data,
+      method: "GET",
+      timeout: 15000,
+      header: { accept: "application/json" },
+      success(response) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          resolve(response.data);
+          return;
+        }
+        reject(new Error(`æ•°æ®æŽ¥å£è¿”å›ž ${response.statusCode}`));
+      },
+      fail(error) {
+        reject(new Error(error.errMsg || "ç½‘ç»œè¯·æ±‚å¤±è´¥"));
+      }
+    });
+  });
+}
+
+function getMatches({ date, tour = "all", query = "" }) {
+  return request("/api/matches", { date, tour, q: query });
+}
+
+function getHealth() {
+  return request("/api/health");
+}
+
+module.exports = { API_BASE, getMatches, getHealth };

@@ -1,1 +1,60 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦þëb–Ïæj×!ŽÅ,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºÞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢ž›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bžŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+const STATUS_TEXT = {
+  scheduled: "å¾…å¼€èµ›",
+  finished: "å·²å®Œèµ›",
+  cancelled: "å·²å–æ¶ˆ",
+  postponed: "å·²å»¶æœŸ"
+};
+
+function displayPlayer(name, nameZh) {
+  return {
+    primary: nameZh || name || "å¾…å®š",
+    secondary: nameZh && nameZh !== name ? name : ""
+  };
+}
+
+function normalizeMatch(match) {
+  const player1 = displayPlayer(match.player1, match.player1Zh);
+  const player2 = displayPlayer(match.player2, match.player2Zh);
+  return {
+    ...match,
+    player1Primary: player1.primary,
+    player1Secondary: player1.secondary,
+    player2Primary: player2.primary,
+    player2Secondary: player2.secondary,
+    player1RankText: match.player1Rank ? `#${match.player1Rank}` : "â€”",
+    player2RankText: match.player2Rank ? `#${match.player2Rank}` : "â€”",
+    statusText: STATUS_TEXT[match.status] || "èµ›ç¨‹",
+    timeText: match.time || "å¾…å®š",
+    roundText: match.round || "è½®æ¬¡å¾…å®š",
+    setScores: Array.isArray(match.setScores) ? match.setScores.map((set, index) => ({
+      ...set,
+      setIndex: index,
+      p1Won: Number(set.p1) > Number(set.p2),
+      p2Won: Number(set.p2) > Number(set.p1)
+    })) : []
+  };
+}
+
+function groupMatches(matches) {
+  const groups = [];
+  const indexes = new Map();
+  matches.forEach((raw) => {
+    const match = normalizeMatch(raw);
+    const key = match.tournament || "å…¶ä»–èµ›äº‹";
+    if (!indexes.has(key)) {
+      indexes.set(key, groups.length);
+      groups.push({
+        id: `group-${groups.length}`,
+        name: key,
+        tour: match.tour,
+        level: match.level,
+        meta: [match.surface, match.city].filter(Boolean).join(" Â· "),
+        matches: []
+      });
+    }
+    groups[indexes.get(key)].matches.push(match);
+  });
+  return groups;
+}
+
+module.exports = { STATUS_TEXT, displayPlayer, groupMatches, normalizeMatch };

@@ -1,1 +1,19 @@
-m«ëˆ§½©buªàºg§¶šèç-r‰ßŠì¢u,j›jÇºà7an{¦Š)ßŠW¨¢ë_ŠW›n·š‘ºŞjG§r‡^v‹­¦ën¦)í¢X§zÊ•éà¶î˜7]yÊy×œ¡×¢›­†¥¥Ø¬¦V²¶¬™ë,j¢Šzn¶)éº×â•ç^}«¥µú+²×bŠ.¶›­¢ëiº×â•ç^}«¥µú+²×hº
+{
+  "description": "çƒåº Â· ATPã€WTA ä¸å¤§æ»¡è´¯èµ›ç¨‹",
+  "appid": "wxf575cca5dce6ff34",
+  "projectname": "tennis-flow-mini-program",
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "urlCheck": true,
+    "checkInvalidKey": true,
+    "checkSiteMap": true,
+    "useApiHook": true,
+    "useApiHostProcess": true
+  },
+  "condition": {}
+}

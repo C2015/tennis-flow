@@ -1,1 +1,11 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦ıªiÃ,RÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbÚ%Šw¬¡ù^aéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉ²Æ z(§¦ëb›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+page {
+  min-height: 100%;
+  background: #071b16;
+  color: #f2f1e9;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+}
+
+button::after { border: 0; }
+
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }

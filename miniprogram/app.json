@@ -1,1 +1,18 @@
-m«ëˆ§½©buªàºg§¶h§Ššè‚¶¦ıªiÊ'RÆ y¶¬{®vçºh¢ø¥zŠ.µø¥y¶ëy©­æ¤zw(uçhºÚn¶êbÚ%Šw¬¡ù^aéƒu×œ¡×yÊz)éºØazZ]ŠÊek+aŠÉ²Æ z(§¦ëb›­~)^uçÚº[_¢»-v)è¢ëiºÚ.¶›­~)^uçÚº[_¢»-v‹­
+{
+  "pages": [
+    "pages/timeline/index",
+    "pages/match/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "çƒåº",
+    "navigationBarBackgroundColor": "#071b16",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#071b16",
+    "backgroundTextStyle": "light"
+  },
+  "networkTimeout": {
+    "request": 15000
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
