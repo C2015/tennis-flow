@@ -88,7 +88,7 @@
             class="match-card" data-group="{{groupIndex}}" data-match="{{matchIndex}}" bindtap="openMatch">
             <view class="match-time">
               <text class="time-value">{{match.timeText}}</text>
-              <text>{{match.status === 'finished' ? match.statusText : match.roundText}}</text>
+              <text>{{match.status === 'finished' || match.status === 'in_progress' ? match.statusText : match.roundText}}</text>
             </view>
             <view class="players">
               <view class="player-row">
@@ -106,7 +106,7 @@
                 <text class="rank">{{match.player2RankText}}</text>
               </view>
             </view>
-            <view wx:if="{{match.status === 'finished'}}" class="sets">
+            <view wx:if="{{match.setScores.length}}" class="sets">
               <view wx:for="{{match.setScores}}" wx:key="setIndex" wx:for-item="set" class="set-score">
                 <text class="{{set.p1Won ? 'won' : ''}}">{{set.p1}}</text>
                 <text class="{{set.p2Won ? 'won' : ''}}">{{set.p2}}</text>

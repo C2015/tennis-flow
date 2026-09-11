@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 import urllib.request
+from time import sleep
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,6 +15,7 @@ from urllib.parse import urlencode
 
 TIMEZONE = ZoneInfo("Asia/Shanghai")
 SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/tennis/{tour}/scoreboard?dates={date}"
+US_OPEN = "https://www.usopen.org"
 HEADERS = {"Accept": "*/*", "User-Agent": "curl/8.7.1"}
 NAME_CACHE = Path(".cache/player-names-zh.json")
 MANUAL_NAMES = {
@@ -89,6 +92,28 @@ def get_json(item):
         return requested_tour, json.load(response)
 
 
+def fetch_json(url):
+    last_error = None
+    for attempt in range(2):
+        try:
+            request = urllib.request.Request(url, headers={**HEADERS, "Accept": "application/json"})
+            with urllib.request.urlopen(request, timeout=25) as response:
+                return json.load(response)
+        except Exception as error:
+            last_error = error
+            if attempt == 0:
+                sleep(0.5)
+    raise last_error
+
+
+def try_fetch_json(url):
+    try:
+        return fetch_json(url)
+    except Exception as error:
+        print(f"Optional data source unavailable ({url}): {error}")
+        return {}
+
+
 def country_code(competitor):
     href = competitor.get("athlete", {}).get("flag", {}).get("href", "")
     match = re.search(r"/([a-z]{3})\.png(?:\?|$)", href, re.IGNORECASE)
@@ -98,12 +123,12 @@ def country_code(competitor):
 def status_name(competition):
     status = competition.get("status", {}).get("type", {})
     description = status.get("description", "").lower()
-    if status.get("state") == "post" or status.get("completed"):
-        return "finished"
     if "cancel" in description or "abandon" in description:
         return "cancelled"
     if "postpon" in description or "suspend" in description:
         return "postponed"
+    if status.get("state") == "post" or status.get("completed"):
+        return "finished"
     return "scheduled"
 
 
@@ -127,6 +152,15 @@ def source_link(event):
         if "summary" in link.get("rel", []):
             return link.get("href")
     return "https://www.espn.com/tennis/scoreboard"
+
+
+def draw_link(event):
+    """Return the draw/bracket page exposed by the scoreboard event, when present."""
+    for link in event.get("links", []):
+        relations = link.get("rel", [])
+        if "bracket" in relations or "draw" in relations:
+            return link.get("href")
+    return None
 
 
 def wikidata_names(names):
@@ -186,6 +220,132 @@ def enrich_chinese_names(matches):
         for player in match["players"]:
             player["nameZh"] = cache.get(player["name"])
     return sum(bool(cache.get(name)) for name in names), len(names)
+
+
+def normalized_name(value):
+    decomposed = unicodedata.normalize("NFKD", value or "")
+    ascii_name = "".join(character for character in decomposed if not unicodedata.combining(character))
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", ascii_name.casefold()).split())
+
+
+def player_pair_key(names):
+    return "|".join(sorted(normalized_name(name) for name in names if name))
+
+
+def us_open_player_name(team):
+    return " ".join(filter(None, (team.get("firstNameA"), team.get("lastNameA")))).strip()
+
+
+def us_open_stats(match, requested_names):
+    base = match.get("base_stats", {}).get("match", {})
+    if not base.get("team_1") or not base.get("team_2"):
+        return None
+    official_names = [us_open_player_name(match.get("team1", {})), us_open_player_name(match.get("team2", {}))]
+    official = [normalized_name(name) for name in official_names]
+    try:
+        order = [official.index(normalized_name(name)) for name in requested_names]
+    except ValueError:
+        return None
+    if len(set(order)) != 2:
+        return None
+
+    teams = [base[f"team_{index + 1}"] for index in order]
+    serve_match = match.get("serve_stats", {}).get("match", {})
+    serve = [serve_match.get(f"team_{index + 1}", {}) for index in order]
+
+    def pair(key):
+        return [team.get(key) for team in teams]
+
+    def ratio(team, won, total):
+        return f"{team[won]}/{team[total]}" if team.get(won) is not None and team.get(total) is not None else None
+
+    def total_points(team):
+        values = [team.get("t_f_srv_w"), team.get("t_s_srv_w"), team.get("t_p_w_opp_srv")]
+        return sum(values) if all(isinstance(value, (int, float)) for value in values) else None
+
+    def fastest_serve(team):
+        value = team.get("t_f_spd", [None])[0] if isinstance(team.get("t_f_spd"), list) else None
+        match_value = re.search(r"\d+", str(value or ""))
+        return f"{match_value.group(0)} km/h" if match_value else None
+
+    match_id = str(match.get("match_id") or "")
+    return {
+        "source": "US Open 官方数据",
+        "sourceUrl": f"{US_OPEN}/en_US/scores/stats/{match_id}.html",
+        "aces": pair("t_ace"),
+        "doubleFaults": pair("df"),
+        "firstServe": pair("f_srv_pct"),
+        "firstServePointsWon": pair("w_pct_f_srv"),
+        "secondServePointsWon": pair("w_pct_s_srv"),
+        "breakPoints": [ratio(team, "t_bp_w", "t_bp") for team in teams],
+        "netPoints": [ratio(team, "t_np_w", "t_na") for team in teams],
+        "winners": pair("t_w"),
+        "unforcedErrors": pair("t_ue"),
+        "totalPointsWon": [total_points(team) for team in teams],
+        "fastestServe": [fastest_serve(team) for team in serve],
+    }
+
+
+def enrich_us_open_stats(matches, start_date, end_date):
+    """Attach official US Open statistics only when the player pairing is an exact match."""
+    targets = [
+        match for match in matches
+        if "us open" in match["tournament"]["name"].casefold()
+        and (match["status"] == "finished" or bool(match.get("score")))
+    ]
+    if not targets:
+        return 0
+    year = start_date.year
+    target_dates = {datetime.fromisoformat(match["date"]).date() for match in targets}
+    official_dates = target_dates | {date - timedelta(days=1) for date in target_dates}
+    try:
+        event_days = fetch_json(f"{US_OPEN}/en_US/scores/feeds/{year}/completed_matches/eventDays.json")
+    except Exception as error:
+        print(f"US Open statistics lookup skipped: {error}")
+        return 0
+
+    urls = [f"{US_OPEN}/en_US/scores/feeds/{year}/matches/live/scores.json"]
+    for item in event_days.get("eventDays", []):
+        message = item.get("message", "")
+        try:
+            calendar_text = message.split(",", 1)[1].strip()
+            event_date = datetime.strptime(f"{calendar_text} {year}", "%B %d %Y").date()
+        except (IndexError, ValueError):
+            continue
+        if event_date in official_dates:
+            urls.append(item["url"])
+
+    candidates = {}
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        for url, payload in zip(urls, executor.map(try_fetch_json, urls)):
+            for match in payload.get("matches", []):
+                names = [us_open_player_name(match.get("team1", {})), us_open_player_name(match.get("team2", {}))]
+                key = player_pair_key(names)
+                if key:
+                    candidates[key] = match
+
+    details = []
+    target_matches = []
+    for target in targets:
+        names = [player["name"] for player in target["players"]]
+        official_match = candidates.get(player_pair_key(names))
+        if not official_match:
+            continue
+        if official_match.get("base_stats"):
+            target["stats"] = us_open_stats(official_match, names)
+            continue
+        match_id = official_match.get("match_id")
+        if match_id:
+            details.append(f"{US_OPEN}/en_US/scores/feeds/{year}/matches/complete/{match_id}.json")
+            target_matches.append(target)
+
+    if details:
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            for target, payload in zip(target_matches, executor.map(try_fetch_json, details)):
+                official_match = (payload.get("matches") or [None])[0]
+                if official_match:
+                    target["stats"] = us_open_stats(official_match, [player["name"] for player in target["players"]])
+    return sum(bool(match.get("stats")) for match in targets)
 
 
 def normalize(payload, start_date, end_date, requested_tour):
@@ -249,6 +409,7 @@ def normalize(payload, start_date, end_date, requested_tour):
                         "surface": None,
                         "city": city.strip() or None,
                         "country": country.strip() or None,
+                        "drawUrl": draw_link(event),
                     },
                     "players": players,
                     "winnerId": winner_id,
@@ -276,12 +437,13 @@ def main():
             collected.update(normalize(payload, start_date, end_date, requested_tour))
 
     matches = sorted(collected.values(), key=lambda item: (item["date"], item["time"] or "99:99", item["id"]))[:300]
+    stats_count = enrich_us_open_stats(matches, start_date, end_date)
     translated, total_players = enrich_chinese_names(matches)
-    output = {"source": "ESPN Tennis scoreboard", "updatedAt": now.isoformat(), "matches": matches}
+    output = {"source": "ESPN Tennis + US Open 官方统计", "updatedAt": now.isoformat(), "matches": matches}
     output_path = Path(".sync/feed.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")
-    print(f"Prepared {len(matches)} current matches from ESPN ({start_date}..{end_date}); Chinese names {translated}/{total_players}")
+    print(f"Prepared {len(matches)} current matches from ESPN ({start_date}..{end_date}); official stats {stats_count}; Chinese names {translated}/{total_players}")
 
 
 if __name__ == "__main__":

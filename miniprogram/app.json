@@ -1,7 +1,8 @@
 {
   "pages": [
     "pages/timeline/index",
-    "pages/match/index"
+    "pages/match/index",
+    "pages/draw/index"
   ],
   "window": {
     "navigationBarTitleText": "球序",

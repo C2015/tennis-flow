@@ -1,3 +1,13 @@
+import {
+  SCOREBOARD_HEADERS,
+  adaptiveDueReason,
+  matchDisplayStatus,
+  pollingIntervalMinutes,
+  scoreboardUpdateStatus
+} from "./adaptive.js";
+import { broadcastsForMatch } from "./broadcasts.js";
+import { fetchUsOpenLiveStats, playerPairKey, usOpenStats } from "./stats.js";
+
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: {
@@ -31,11 +41,11 @@ export default {
       for (let start = 0; start < feed.matches.length; start += 30) {
         const statements = [];
         for (const event of feed.matches.slice(start, start + 30)) {
-          statements.push(env.DB.prepare("INSERT INTO tournaments (id,name,tour,level,surface,city,country,featured) VALUES (?1,?2,?3,?4,?5,?6,?7,?8) ON CONFLICT(id) DO UPDATE SET name=excluded.name,tour=excluded.tour,level=excluded.level,surface=excluded.surface,city=excluded.city,country=excluded.country,featured=excluded.featured").bind(event.tournament.id,event.tournament.name,event.tournament.tour,event.tournament.level,event.tournament.surface||null,event.tournament.city||null,event.tournament.country||null,event.tournament.level === "Grand Slam" ? 1 : 0));
+          statements.push(env.DB.prepare("INSERT INTO tournaments (id,name,tour,level,surface,city,country,draw_url,featured) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9) ON CONFLICT(id) DO UPDATE SET name=excluded.name,tour=excluded.tour,level=excluded.level,surface=excluded.surface,city=excluded.city,country=excluded.country,draw_url=coalesce(excluded.draw_url,tournaments.draw_url),featured=excluded.featured").bind(event.tournament.id,event.tournament.name,event.tournament.tour,event.tournament.level,event.tournament.surface||null,event.tournament.city||null,event.tournament.country||null,event.tournament.drawUrl||null,event.tournament.level === "Grand Slam" ? 1 : 0));
           for (const player of event.players) {
             statements.push(env.DB.prepare("INSERT INTO players (id,name,name_zh,country_code) VALUES (?1,?2,?3,?4) ON CONFLICT(id) DO UPDATE SET name=excluded.name,name_zh=coalesce(excluded.name_zh,players.name_zh),country_code=excluded.country_code").bind(player.id,player.name,player.nameZh||null,player.country||null));
           }
-          statements.push(env.DB.prepare("INSERT INTO matches (id,tournament_id,match_date,start_time,status,round,court,best_of,player1_id,player2_id,player1_rank,player2_rank,winner_player_id,score,set_scores,stats,source_url,source_updated_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET tournament_id=excluded.tournament_id,match_date=excluded.match_date,start_time=excluded.start_time,status=excluded.status,round=excluded.round,court=excluded.court,best_of=excluded.best_of,player1_id=excluded.player1_id,player2_id=excluded.player2_id,player1_rank=excluded.player1_rank,player2_rank=excluded.player2_rank,winner_player_id=excluded.winner_player_id,score=excluded.score,set_scores=excluded.set_scores,stats=excluded.stats,source_url=excluded.source_url,source_updated_at=excluded.source_updated_at,updated_at=CURRENT_TIMESTAMP").bind(event.id,event.tournament.id,event.date,event.time||null,event.status,event.round||null,event.court||null,event.bestOf||3,event.players[0].id,event.players[1].id,event.players[0].rank||null,event.players[1].rank||null,event.winnerId||null,event.score||null,JSON.stringify(event.setScores||[]),event.stats?JSON.stringify(event.stats):null,event.sourceUrl||null,feed.updatedAt));
+          statements.push(env.DB.prepare("INSERT INTO matches (id,tournament_id,match_date,start_time,status,round,court,best_of,player1_id,player2_id,player1_rank,player2_rank,winner_player_id,score,set_scores,stats,source_url,source_updated_at,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET tournament_id=excluded.tournament_id,match_date=excluded.match_date,start_time=excluded.start_time,status=excluded.status,round=excluded.round,court=excluded.court,best_of=excluded.best_of,player1_id=excluded.player1_id,player2_id=excluded.player2_id,player1_rank=excluded.player1_rank,player2_rank=excluded.player2_rank,winner_player_id=excluded.winner_player_id,score=excluded.score,set_scores=excluded.set_scores,stats=coalesce(excluded.stats,matches.stats),source_url=excluded.source_url,source_updated_at=excluded.source_updated_at,updated_at=CURRENT_TIMESTAMP").bind(event.id,event.tournament.id,event.date,event.time||null,event.status,event.round||null,event.court||null,event.bestOf||3,event.players[0].id,event.players[1].id,event.players[0].rank||null,event.players[1].rank||null,event.winnerId||null,event.score||null,JSON.stringify(event.setScores||[]),event.stats?JSON.stringify(event.stats):null,event.sourceUrl||null,feed.updatedAt));
           imported += 1;
         }
         await env.DB.batch(statements);
@@ -45,11 +55,19 @@ export default {
     }
 
     if (url.pathname === "/api/health") {
-      const [sync, availability] = await Promise.all([
+      const [sync, availability, adaptiveCron, adaptiveRequest] = await Promise.all([
         env.DB.prepare("SELECT finished_at, status, source, imported_count FROM sync_runs ORDER BY id DESC LIMIT 1").first(),
-        env.DB.prepare("SELECT min(match_date) AS firstDate, max(match_date) AS latestDate FROM matches WHERE source_url IS NOT NULL").first()
+        env.DB.prepare("SELECT min(match_date) AS firstDate, max(match_date) AS latestDate FROM matches WHERE source_url IS NOT NULL").first(),
+        env.DB.prepare("SELECT scheduled_at AS scheduledAt,finished_at AS finishedAt,active_groups AS activeGroups,requested_groups AS requestedGroups,successful_groups AS successfulGroups,failed_groups AS failedGroups,updated_count AS updatedCount,status FROM adaptive_cron_runs ORDER BY id DESC LIMIT 1").first(),
+        env.DB.prepare("SELECT checked_at AS checkedAt,target_key AS targetKey,interval_minutes AS intervalMinutes,due_reason AS dueReason,status,http_status AS httpStatus,duration_ms AS durationMs,updated_count AS updatedCount,next_check_at AS nextCheckAt FROM adaptive_sync_runs ORDER BY id DESC LIMIT 1").first()
       ]);
-      return json({ ok: true, database: "connected", lastSync: sync || null, availability });
+      return json({
+        ok: true,
+        database: "connected",
+        lastSync: sync || null,
+        availability,
+        adaptive: { lastCron: adaptiveCron || null, lastRequest: adaptiveRequest || null }
+      });
     }
 
     if (url.pathname === "/api/matches") {
@@ -61,12 +79,13 @@ export default {
       if (!["ALL", "ATP", "WTA", "SLAM"].includes(tour)) return json({ error: "无效的赛事筛选" }, 400);
 
       const term = `%${query}%`;
-      const result = await env.DB.prepare(`
+      const [result, ruleResult, exactResult] = await Promise.all([
+        env.DB.prepare(`
         SELECT
           m.id, m.match_date AS date, m.start_time AS time, m.status,
           m.round, m.court, m.best_of AS bestOf, m.score, m.set_scores AS setScores,
           m.stats, m.source_url AS sourceUrl,
-          t.name AS tournament, t.tour, t.level, t.surface, t.city, t.country,
+          t.id AS tournamentId, t.name AS tournament, t.tour, t.level, t.surface, t.city, t.country, t.draw_url AS drawUrl,
           p1.name AS player1, p1.name_zh AS player1Zh, p1.country_code AS player1Country, m.player1_rank AS player1Rank,
           p2.name AS player2, p2.name_zh AS player2Zh, p2.country_code AS player2Country, m.player2_rank AS player2Rank,
           m.winner_player_id AS winnerPlayerId, m.player1_id AS player1Id, m.player2_id AS player2Id
@@ -78,20 +97,82 @@ export default {
           AND (?2 = 'ALL' OR t.tour = ?2 OR (?2 = 'SLAM' AND t.level = 'Grand Slam'))
           AND (?3 = '' OR p1.name LIKE ?4 OR p2.name LIKE ?4 OR p1.name_zh LIKE ?4 OR p2.name_zh LIKE ?4 OR t.name LIKE ?4)
         ORDER BY t.featured DESC, t.name, m.start_time, m.id
-      `).bind(date, tour, query, term).all();
+        `).bind(date, tour, query, term).all(),
+        env.DB.prepare(`
+          SELECT id,platform,platform_name AS platformName,tournament_patterns AS tournamentPatterns,
+                 tour,level,exclude_level AS excludeLevel,exclude_country AS excludeCountry,
+                 starts_on AS startsOn,ends_on AS endsOn,coverage,watch_url AS watchUrl,
+                 mini_program_app_id AS miniProgramAppId,mini_program_path AS miniProgramPath,
+                 source_url AS sourceUrl,is_free AS isFree,priority,active,verified_at AS verifiedAt
+          FROM broadcast_rules
+          WHERE active=1 AND starts_on<=?1 AND ends_on>=?1
+          ORDER BY priority DESC
+        `).bind(date).all(),
+        env.DB.prepare(`
+          SELECT b.match_id AS matchId,b.platform,b.platform_name AS platformName,b.watch_url AS watchUrl,
+                 b.mini_program_app_id AS miniProgramAppId,b.mini_program_path AS miniProgramPath,
+                 b.source_url AS sourceUrl,b.is_free AS isFree,b.verified_at AS verifiedAt,1000 AS priority
+          FROM match_broadcasts b JOIN matches m ON m.id=b.match_id
+          WHERE m.match_date=?1 AND b.active=1
+            AND (b.expires_at IS NULL OR datetime(b.expires_at)>datetime('now'))
+        `).bind(date).all()
+      ]);
 
-      const matches = result.results.map((row) => ({
-        ...row,
-        setScores: safeParse(row.setScores, []),
-        stats: safeParse(row.stats, null),
-        winner: row.winnerPlayerId === row.player1Id ? 1 : row.winnerPlayerId === row.player2Id ? 2 : null
-      }));
+      const matches = result.results.map((row) => {
+        const setScores = safeParse(row.setScores, []);
+        const match = {
+          ...row,
+          status: matchDisplayStatus(row.status, setScores, row.score),
+          setScores,
+          stats: safeParse(row.stats, null),
+          winner: row.winnerPlayerId === row.player1Id ? 1 : row.winnerPlayerId === row.player2Id ? 2 : null
+        };
+        return { ...match, broadcasts: broadcastsForMatch(match, ruleResult.results, exactResult.results) };
+      });
       let suggestedDate = null;
       if (!matches.length) {
         const nearest = await env.DB.prepare("SELECT match_date AS date FROM matches WHERE source_url IS NOT NULL ORDER BY abs(julianday(match_date) - julianday(?1)) LIMIT 1").bind(date).first();
         suggestedDate = nearest?.date || null;
       }
       return json({ date, timezone: "Asia/Shanghai", matches, suggestedDate });
+    }
+
+    if (url.pathname === "/api/draw") {
+      const tournamentId = (url.searchParams.get("tournamentId") || "").trim();
+      if (!/^[a-zA-Z0-9._:-]{1,120}$/.test(tournamentId)) return json({ error: "无效的赛事编号" }, 400);
+
+      const [tournament, result] = await Promise.all([
+        env.DB.prepare(`
+          SELECT id,name,tour,level,surface,city,country,draw_url AS drawUrl
+          FROM tournaments WHERE id=?1
+        `).bind(tournamentId).first(),
+        env.DB.prepare(`
+          SELECT
+            m.id,m.match_date AS date,m.start_time AS time,m.status,m.round,m.court,m.score,
+            m.set_scores AS setScores,m.winner_player_id AS winnerPlayerId,
+            m.player1_id AS player1Id,p1.name AS player1,p1.name_zh AS player1Zh,
+            p1.country_code AS player1Country,m.player1_rank AS player1Rank,
+            m.player2_id AS player2Id,p2.name AS player2,p2.name_zh AS player2Zh,
+            p2.country_code AS player2Country,m.player2_rank AS player2Rank
+          FROM matches m
+          JOIN players p1 ON p1.id=m.player1_id
+          JOIN players p2 ON p2.id=m.player2_id
+          WHERE m.tournament_id=?1
+          ORDER BY m.match_date,m.start_time,m.id
+        `).bind(tournamentId).all()
+      ]);
+      if (!tournament) return json({ error: "没有找到这项赛事" }, 404);
+
+      const matches = result.results.map((row) => {
+        const setScores = safeParse(row.setScores, []);
+        return {
+          ...row,
+          status: matchDisplayStatus(row.status, setScores, row.score),
+          setScores,
+          winner: row.winnerPlayerId === row.player1Id ? 1 : row.winnerPlayerId === row.player2Id ? 2 : null
+        };
+      });
+      return json({ timezone: "Asia/Shanghai", tournament, matches });
     }
 
     if (url.pathname.startsWith("/api/")) return json({ error: "接口不存在" }, 404);
@@ -104,6 +185,15 @@ export default {
 };
 
 async function runAdaptiveSync(env, now) {
+  const scheduledAt = now.toISOString();
+  const runStartedAt = Date.now();
+  let activeGroups = 0;
+  let requestedGroups = 0;
+  let successfulGroups = 0;
+  let failedGroups = 0;
+  let updated = 0;
+
+  try {
   const today = beijingDate(now);
   const earliestDate = beijingDate(new Date(now.getTime() - ACTIVE_WINDOW_MS));
   const [pendingResult, stateResult] = await Promise.all([
@@ -116,10 +206,10 @@ async function runAdaptiveSync(env, now) {
         AND m.start_time IS NOT NULL
         AND m.match_date BETWEEN ?1 AND ?2
     `).bind(earliestDate, today).all(),
-    env.DB.prepare("SELECT target_key, next_check_at FROM adaptive_sync_state").all()
+    env.DB.prepare("SELECT target_key, last_checked_at, next_check_at FROM adaptive_sync_state").all()
   ]);
 
-  const states = new Map(stateResult.results.map((row) => [row.target_key, row.next_check_at]));
+  const states = new Map(stateResult.results.map((row) => [row.target_key, row]));
   const groups = new Map();
   for (const match of pendingResult.results) {
     const startAt = Date.parse(`${match.date}T${match.time}:00+08:00`);
@@ -133,25 +223,47 @@ async function runAdaptiveSync(env, now) {
     }
   }
 
-  const due = [...groups.values()].filter((group) => {
-    const nextCheck = Date.parse(states.get(group.key) || "");
-    return !Number.isFinite(nextCheck) || nextCheck <= now.getTime();
+  activeGroups = groups.size;
+  const due = [...groups.values()].flatMap((group) => {
+    const dueReason = adaptiveDueReason(group, states.get(group.key), now.getTime());
+    return dueReason ? [{ ...group, dueReason }] : [];
   });
+  requestedGroups = due.length;
 
-  let updated = 0;
   for (const group of due) {
-    updated += await refreshScoreboardGroup(env, group, now);
+    const result = await refreshScoreboardGroup(env, group, now);
+    updated += result.updated;
+    if (result.status === "success") successfulGroups += 1;
+    else failedGroups += 1;
   }
+  const status = failedGroups ? "partial_error" : "success";
+  await recordAdaptiveCronRun(env, {
+    scheduledAt, activeGroups, requestedGroups, successfulGroups, failedGroups, updated, status, message: null
+  });
+  await pruneAdaptiveHistory(env);
   console.log(JSON.stringify({
     event: "adaptive_sync_complete",
-    checkedAt: now.toISOString(),
-    activeGroups: groups.size,
-    requestedGroups: due.length,
-    updated
+    checkedAt: scheduledAt,
+    durationMs: Date.now() - runStartedAt,
+    activeGroups,
+    requestedGroups,
+    successfulGroups,
+    failedGroups,
+    updated,
+    status
   }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300);
+    await recordAdaptiveCronRun(env, {
+      scheduledAt, activeGroups, requestedGroups, successfulGroups, failedGroups, updated, status: "error", message
+    }).catch(() => {});
+    console.error(JSON.stringify({ event: "adaptive_cron_failed", checkedAt: scheduledAt, error: message }));
+    throw error;
+  }
 }
 
 async function refreshScoreboardGroup(env, group, now) {
+  const startedAt = Date.now();
   const checkedAt = now.toISOString();
   const nextCheckAt = new Date(now.getTime() + group.interval * 60_000).toISOString();
   const compactDate = group.date.replaceAll("-", "");
@@ -159,28 +271,47 @@ async function refreshScoreboardGroup(env, group, now) {
   let status = "success";
   let message = null;
   let updated = 0;
+  let httpStatus = null;
 
   try {
     const response = await fetch(url, {
-      headers: { "accept": "application/json", "user-agent": "TennisFlow/0.4 (scores.tennisdrills.org)" },
+      headers: SCOREBOARD_HEADERS,
       signal: AbortSignal.timeout(15_000)
     });
+    httpStatus = response.status;
     if (!response.ok) throw new Error(`ESPN returned ${response.status}`);
     const contentLength = Number(response.headers.get("content-length") || 0);
     if (contentLength > 5_000_000) throw new Error("ESPN response exceeded 5MB");
     const payload = await response.json();
-    const updates = extractTerminalUpdates(payload, group.tour, group.date, checkedAt);
+    const updates = extractScoreboardUpdates(payload, group.tour, group.date, checkedAt);
+    if (updates.some((item) => item.isUsOpen)) {
+      try {
+        const official = await fetchUsOpenLiveStats(group.date.slice(0, 4));
+        for (const item of updates) {
+          if (!item.isUsOpen) continue;
+          const officialMatch = official.get(playerPairKey(item.playerNames))?.match;
+          item.stats = officialMatch ? usOpenStats(officialMatch, item.playerNames) : null;
+        }
+      } catch (error) {
+        console.warn(JSON.stringify({
+          event: "official_stats_unavailable",
+          target: group.key,
+          error: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200)
+        }));
+      }
+    }
     if (updates.length) {
       const results = await env.DB.batch(updates.map((item) => env.DB.prepare(`
         UPDATE matches
         SET status=?1, winner_player_id=?2, score=?3, set_scores=?4,
-            source_updated_at=?5, updated_at=CURRENT_TIMESTAMP
-        WHERE id=?6
+            stats=coalesce(?5,stats), source_updated_at=?6, updated_at=CURRENT_TIMESTAMP
+        WHERE id=?7
           AND (status<>?1
             OR ifnull(winner_player_id,'')<>ifnull(?2,'')
             OR ifnull(score,'')<>ifnull(?3,'')
-            OR ifnull(set_scores,'')<>ifnull(?4,''))
-      `).bind(item.status, item.winnerId, item.score, JSON.stringify(item.setScores), checkedAt, item.id)));
+            OR ifnull(set_scores,'')<>ifnull(?4,'')
+            OR (?5 IS NOT NULL AND ifnull(stats,'')<>?5))
+      `).bind(item.status, item.winnerId, item.score, JSON.stringify(item.setScores), item.stats ? JSON.stringify(item.stats) : null, checkedAt, item.id)));
       updated = results.reduce((total, result) => total + Number(result.meta?.changes || 0), 0);
     }
   } catch (error) {
@@ -189,23 +320,67 @@ async function refreshScoreboardGroup(env, group, now) {
     console.error(JSON.stringify({ event: "adaptive_sync_failed", target: group.key, error: message }));
   }
 
-  await env.DB.prepare(`
-    INSERT INTO adaptive_sync_state
+  const durationMs = Math.max(0, Date.now() - startedAt);
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO adaptive_sync_state
       (target_key,last_checked_at,next_check_at,last_status,updated_count,message)
-    VALUES (?1,?2,?3,?4,?5,?6)
-    ON CONFLICT(target_key) DO UPDATE SET
-      last_checked_at=excluded.last_checked_at,
-      next_check_at=excluded.next_check_at,
-      last_status=excluded.last_status,
-      updated_count=excluded.updated_count,
-      message=excluded.message
-  `).bind(group.key, checkedAt, nextCheckAt, status, updated, message).run();
-  return updated;
+      VALUES (?1,?2,?3,?4,?5,?6)
+      ON CONFLICT(target_key) DO UPDATE SET
+        last_checked_at=excluded.last_checked_at,
+        next_check_at=excluded.next_check_at,
+        last_status=excluded.last_status,
+        updated_count=excluded.updated_count,
+        message=excluded.message
+    `).bind(group.key, checkedAt, nextCheckAt, status, updated, message),
+    env.DB.prepare(`
+      INSERT INTO adaptive_sync_runs
+        (checked_at,target_key,match_date,tour,interval_minutes,due_reason,status,http_status,duration_ms,updated_count,next_check_at,message)
+      VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
+    `).bind(checkedAt, group.key, group.date, group.tour, group.interval, group.dueReason, status, httpStatus, durationMs, updated, nextCheckAt, message)
+  ]);
+  console.log(JSON.stringify({
+    event: "adaptive_scoreboard_request",
+    target: group.key,
+    intervalMinutes: group.interval,
+    dueReason: group.dueReason,
+    status,
+    httpStatus,
+    durationMs,
+    updated
+  }));
+  return { updated, status };
 }
 
-function extractTerminalUpdates(payload, requestedTour, requestedDate, checkedAt) {
+async function recordAdaptiveCronRun(env, run) {
+  await env.DB.prepare(`
+    INSERT INTO adaptive_cron_runs
+      (scheduled_at,finished_at,active_groups,requested_groups,successful_groups,failed_groups,updated_count,status,message)
+    VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)
+  `).bind(
+    run.scheduledAt,
+    new Date().toISOString(),
+    run.activeGroups,
+    run.requestedGroups,
+    run.successfulGroups,
+    run.failedGroups,
+    run.updated,
+    run.status,
+    run.message
+  ).run();
+}
+
+async function pruneAdaptiveHistory(env) {
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM adaptive_cron_runs WHERE scheduled_at < datetime('now','-30 days')"),
+    env.DB.prepare("DELETE FROM adaptive_sync_runs WHERE checked_at < datetime('now','-30 days')")
+  ]);
+}
+
+function extractScoreboardUpdates(payload, requestedTour, requestedDate, checkedAt) {
   const updates = [];
   for (const event of Array.isArray(payload?.events) ? payload.events : []) {
+    const isUsOpen = /\bus open\b/i.test(String(event?.name || event?.shortName || ""));
     for (const group of Array.isArray(event?.groupings) ? event.groupings : []) {
       const slug = group?.grouping?.slug;
       const tour = slug === "mens-singles" ? "ATP" : slug === "womens-singles" ? "WTA" : null;
@@ -213,7 +388,7 @@ function extractTerminalUpdates(payload, requestedTour, requestedDate, checkedAt
       for (const competition of Array.isArray(group?.competitions) ? group.competitions : []) {
         const id = String(competition?.id || "");
         const competitionDate = localCompetitionDate(competition?.date);
-        const status = terminalStatus(competition);
+        const status = scoreboardUpdateStatus(competition?.status?.type);
         const competitors = [...(Array.isArray(competition?.competitors) ? competition.competitors : [])]
           .sort((left, right) => Number(left?.order ?? 99) - Number(right?.order ?? 99));
         if (!id || competitionDate !== requestedDate || !status || competitors.length !== 2) continue;
@@ -225,21 +400,15 @@ function extractTerminalUpdates(payload, requestedTour, requestedDate, checkedAt
           winnerId: winnerIndex >= 0 ? playerId(competitors[winnerIndex]) : null,
           score,
           setScores,
+          isUsOpen,
+          playerNames: competitors.map((competitor) => competitor?.athlete?.displayName || competitor?.athlete?.fullName || ""),
+          stats: null,
           checkedAt
         });
       }
     }
   }
   return updates;
-}
-
-function terminalStatus(competition) {
-  const type = competition?.status?.type || {};
-  const description = String(type.description || "").toLowerCase();
-  if (type.state === "post" || type.completed === true) return "finished";
-  if (description.includes("cancel") || description.includes("abandon")) return "cancelled";
-  if (description.includes("postpon") || description.includes("suspend")) return "postponed";
-  return null;
 }
 
 function scoreData(competitors) {
@@ -273,13 +442,6 @@ function beijingDate(date) {
   }).formatToParts(date);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
-}
-
-function pollingIntervalMinutes(level, tournament) {
-  const value = `${level || ""} ${tournament || ""}`.toLowerCase();
-  if (/grand slam|1000|finals|olympic|australian open|roland garros|french open|wimbledon|us open/.test(value)) return 10;
-  if (/\b500\b/.test(value)) return 30;
-  return 60;
 }
 
 function safeParse(value, fallback) {

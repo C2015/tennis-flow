@@ -23,11 +23,15 @@ function request(path, data = {}) {
 }
 
 function getMatches({ date, tour = "all", query = "" }) {
-  return request("/api/matches", { date, tour, q: query });
+  return request("/api/matches", { date, tour, q: query, view: "draw-v1" });
 }
 
 function getHealth() {
   return request("/api/health");
 }
 
-module.exports = { API_BASE, getMatches, getHealth };
+function getDraw(tournamentId) {
+  return request("/api/draw", { tournamentId });
+}
+
+module.exports = { API_BASE, getMatches, getHealth, getDraw };

@@ -15,6 +15,24 @@
 .competitor .secondary { margin-top: 7rpx; overflow: hidden; color: #c0ccc6; font-family: "DIN Alternate", sans-serif; font-size: 17rpx; text-overflow: ellipsis; white-space: nowrap; }
 .score { color: #d9ff43; font-family: "DIN Alternate", sans-serif; font-size: 40rpx; font-weight: 800; text-align: center; }
 .detail-body { padding: 30rpx 28rpx 60rpx; }
+.broadcast-panel { margin: 0 0 28rpx; padding: 22rpx; color: #f2f1e9; background: #123e31; border-radius: 24rpx; box-shadow: 0 16rpx 40rpx rgba(7,27,22,.12); }
+.broadcast-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13rpx; color: #b9c8c1; font-size: 18rpx; }
+.broadcast-heading view { display: flex; align-items: center; color: #f2f1e9; font-size: 22rpx; font-weight: 800; }
+.live-dot { width: 11rpx; height: 11rpx; margin-right: 10rpx; background: #ff775f; border-radius: 50%; box-shadow: 0 0 0 7rpx rgba(255,119,95,.14); }
+.broadcast-button { display: grid; grid-template-columns: 48rpx minmax(0,1fr) 28rpx; align-items: center; width: 100%; min-height: 92rpx; margin-top: 10rpx; padding: 13rpx 18rpx; color: #071b16; background: #d9ff43; border: 0; border-radius: 18rpx; line-height: 1.2; text-align: left; }
+.broadcast-button::after { border: 0; }
+.broadcast-button view text { display: block; font-size: 24rpx; font-weight: 850; }
+.broadcast-button view text + text { margin-top: 7rpx; color: #43513f; font-size: 17rpx; font-weight: 500; }
+.play-icon { font-size: 23rpx; }
+.broadcast-arrow { font-size: 34rpx; text-align: right; }
+.draw-entry { display: grid; grid-template-columns: 58rpx minmax(0,1fr) 30rpx; align-items: center; width: 100%; min-height: 116rpx; margin: 0 0 24rpx; padding: 18rpx 22rpx; color: #f2f1e9; background: #0c2d24; border: 0; border-radius: 24rpx; line-height: 1.2; text-align: left; box-shadow: 0 14rpx 34rpx rgba(7,27,22,.12); }
+.draw-entry::after { border: 0; }
+.draw-glyph { position: relative; width: 42rpx; height: 52rpx; }
+.draw-glyph::before { content: ""; position: absolute; left: 7rpx; top: 5rpx; bottom: 5rpx; width: 2rpx; background: rgba(217,255,67,.38); }
+.draw-glyph view { position: relative; width: 12rpx; height: 12rpx; margin: 4rpx 0 5rpx 2rpx; background: #d9ff43; border: 5rpx solid #0c2d24; border-radius: 50%; box-shadow: 0 0 0 2rpx #d9ff43; }
+.draw-entry-copy text { display: block; font-size: 25rpx; font-weight: 850; }
+.draw-entry-copy text + text { margin-top: 8rpx; color: #9fb1a9; font-size: 18rpx; font-weight: 500; }
+.draw-entry-arrow { color: #d9ff43; font-size: 40rpx; text-align: right; }
 .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
 .fact { padding: 22rpx; background: #e5e4d9; border-radius: 20rpx; }
 .fact text { display: block; color: #78817c; font-size: 18rpx; }
@@ -28,5 +46,7 @@
 .stat-row text { color: #69756f; font-size: 21rpx; }
 .stat-row .accent { color: #0c2d24; font-size: 31rpx; font-weight: 900; }
 .no-stats { padding: 54rpx 20rpx; color: #758079; font-size: 22rpx; text-align: center; }
+.stats-source { margin-top: 18rpx; padding: 0; background: transparent; color: #65716b; font-size: 20rpx; line-height: 1.5; text-align: left; }
+.stats-source::after { border: 0; }
 .source-note { margin-top: 36rpx; padding: 25rpx; color: #695d2f; background: #eee5c4; border-radius: 20rpx; font-size: 20rpx; line-height: 1.6; }
 .source-note button { width: auto; margin: 18rpx 0 0; padding: 0; color: #423b20; background: transparent; font-size: 21rpx; font-weight: 800; line-height: 1.4; text-align: left; text-decoration: underline; }

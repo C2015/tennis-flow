@@ -1,0 +1,60 @@
+.draw-page { min-height: 100vh; color: #071b16; background: #f2f1e9; }
+.draw-hero { position: relative; overflow: hidden; min-height: 260rpx; padding: 44rpx 34rpx 34rpx; color: #f2f1e9; background: #0c2d24; }
+.hero-kicker, .hero-title, .hero-meta { position: relative; z-index: 1; }
+.hero-kicker { color: #d9ff43; font-family: "DIN Alternate", sans-serif; font-size: 19rpx; letter-spacing: 2rpx; }
+.hero-title { display: block; max-width: 610rpx; margin-top: 16rpx; font-size: 38rpx; font-weight: 850; line-height: 1.28; }
+.hero-meta { display: flex; align-items: center; margin-top: 25rpx; color: #9fb1a9; font-size: 20rpx; }
+.hero-meta view { width: 6rpx; height: 6rpx; margin: 0 15rpx; background: #d9ff43; border-radius: 50%; }
+.court-mark { position: absolute; right: -45rpx; top: -25rpx; width: 250rpx; height: 330rpx; border: 2rpx solid rgba(217,255,67,.1); transform: rotate(13deg); }
+.court-mark::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2rpx solid rgba(217,255,67,.1); }
+.court-mark view { position: absolute; left: 0; right: 0; top: 50%; border-top: 2rpx solid rgba(217,255,67,.1); }
+.draw-body { padding-bottom: 60rpx; }
+.round-scroll { position: sticky; top: 0; z-index: 3; box-sizing: border-box; width: 100%; background: rgba(242,241,233,.96); border-bottom: 2rpx solid #d2d3ca; }
+.round-tabs { display: inline-flex; min-width: 100%; padding: 20rpx 24rpx 17rpx; box-sizing: border-box; }
+.round-tab { flex: none; min-width: 150rpx; margin-right: 10rpx; padding: 15rpx 19rpx; color: #6e7973; background: #e2e1d8; border: 0; border-radius: 14rpx; line-height: 1.2; text-align: left; }
+.round-tab::after { border: 0; }
+.round-tab text { display: block; font-size: 21rpx; font-weight: 750; }
+.round-tab text + text { margin-top: 7rpx; color: #8b938e; font-family: "DIN Alternate", sans-serif; font-size: 16rpx; font-weight: 500; }
+.round-tab.active { color: #d9ff43; background: #0c2d24; box-shadow: 0 10rpx 24rpx rgba(7,27,22,.14); }
+.round-tab.active text + text { color: #9fb1a9; }
+.round-content { padding: 31rpx 27rpx 0; }
+.round-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 19rpx; }
+.round-heading > view text { display: block; }
+.round-heading > view text:first-child { color: #8b938e; font-family: "DIN Alternate", sans-serif; font-size: 15rpx; letter-spacing: 3rpx; }
+.round-heading > view text:last-child { margin-top: 3rpx; font-size: 29rpx; font-weight: 900; }
+.round-heading > text { color: #7e8882; font-size: 19rpx; }
+.draw-list { position: relative; padding-left: 24rpx; }
+.draw-list::before { content: ""; position: absolute; left: 5rpx; top: 36rpx; bottom: 36rpx; width: 2rpx; background: #c7cbc3; }
+.draw-match { position: relative; margin-bottom: 18rpx; padding: 18rpx 18rpx 14rpx; background: #e5e4d9; border: 2rpx solid transparent; border-radius: 20rpx; }
+.draw-match::before { content: ""; position: absolute; left: -25rpx; top: 35rpx; width: 13rpx; height: 13rpx; background: #9ba49f; border: 7rpx solid #f2f1e9; border-radius: 50%; }
+.draw-match.focus { background: #fffef7; border-color: #0c2d24; box-shadow: 0 13rpx 34rpx rgba(7,27,22,.1); }
+.draw-match.focus::before { background: #d9ff43; box-shadow: 0 0 0 3rpx #0c2d24; }
+.match-topline { display: flex; align-items: center; justify-content: space-between; min-height: 30rpx; padding-bottom: 12rpx; color: #7a847e; font-size: 17rpx; }
+.focus-tag { padding: 5rpx 10rpx; color: #071b16; background: #d9ff43; border-radius: 100rpx; font-size: 16rpx; font-weight: 850; }
+.match-status { color: #66726c; font-weight: 750; }
+.draw-player { display: grid; grid-template-columns: 48rpx minmax(0,1fr) 48rpx auto 30rpx; align-items: center; min-height: 68rpx; border-top: 2rpx solid rgba(113,125,118,.15); }
+.draw-player .country { color: #7f8983; font-family: "DIN Alternate", sans-serif; font-size: 16rpx; }
+.player-name { min-width: 0; }
+.player-name text { display: block; overflow: hidden; font-size: 23rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.player-name text + text { margin-top: 3rpx; color: #858e89; font-family: "DIN Alternate", sans-serif; font-size: 15rpx; font-weight: 500; }
+.draw-player.winner .player-name text:first-child { color: #0c2d24; font-weight: 900; }
+.player-rank { color: #77827c; font-family: "DIN Alternate", sans-serif; font-size: 17rpx; }
+.player-sets { display: flex; justify-content: flex-end; }
+.player-sets text { width: 30rpx; font-family: "DIN Alternate", sans-serif; font-size: 20rpx; font-weight: 750; text-align: center; }
+.winner-mark { color: #0c2d24; font-size: 22rpx; font-weight: 900; text-align: right; }
+.court-name { display: block; padding-top: 9rpx; color: #89918d; font-size: 16rpx; text-align: right; }
+.draw-note { margin: 32rpx 27rpx 0; padding: 24rpx; color: #695d2f; background: #eee5c4; border-radius: 18rpx; font-size: 19rpx; line-height: 1.6; }
+.draw-note button { width: auto; margin: 15rpx 0 0; padding: 0; color: #423b20; background: transparent; font-size: 20rpx; font-weight: 850; line-height: 1.4; text-align: left; text-decoration: underline; }
+.draw-note button::after { border: 0; }
+.draw-loading { display: flex; justify-content: center; gap: 11rpx; padding: 180rpx 0; }
+.draw-loading view { width: 13rpx; height: 13rpx; background: #0c2d24; border-radius: 50%; animation: draw-pulse .8s infinite alternate; }
+.draw-loading view:nth-child(2) { animation-delay: .15s; }
+.draw-loading view:nth-child(3) { animation-delay: .3s; }
+@keyframes draw-pulse { to { opacity: .2; transform: translateY(-10rpx); } }
+.draw-state { padding: 150rpx 50rpx; text-align: center; }
+.state-ball { width: 70rpx; height: 70rpx; margin: auto; background: #d9ff43; border-radius: 50%; box-shadow: inset 0 0 0 2rpx #bfd738; }
+.state-title, .state-copy { display: block; }
+.state-title { margin-top: 28rpx; font-size: 28rpx; font-weight: 850; }
+.state-copy { margin-top: 12rpx; color: #758079; font-size: 21rpx; }
+.draw-state button { width: 210rpx; margin-top: 28rpx; color: #d9ff43; background: #0c2d24; border-radius: 100rpx; font-size: 21rpx; }
+.empty-round { padding: 100rpx 30rpx; color: #758079; font-size: 22rpx; text-align: center; }

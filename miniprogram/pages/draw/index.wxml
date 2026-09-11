@@ -1,0 +1,68 @@
+<view class="draw-page safe-bottom">
+  <view class="draw-hero">
+    <view class="court-mark"><view></view></view>
+    <text class="hero-kicker">{{tournament ? tournament.tour + ' · ' + tournament.level : 'TOURNAMENT DRAW'}}</text>
+    <text class="hero-title">{{tournament ? tournament.name : '赛事签表'}}</text>
+    <view wx:if="{{tournament}}" class="hero-meta">
+      <text>{{rounds.length}} 个轮次</text><view></view><text>{{tournament.city || '比赛地点待公布'}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="draw-loading"><view></view><view></view><view></view></view>
+
+  <view wx:elif="{{error}}" class="draw-state">
+    <view class="state-ball"></view>
+    <text class="state-title">签表暂时没有展开</text>
+    <text class="state-copy">{{error}}</text>
+    <button bindtap="retry">重新加载</button>
+  </view>
+
+  <view wx:elif="{{tournament}}" class="draw-body">
+    <scroll-view class="round-scroll" scroll-x enhanced show-scrollbar="{{false}}" scroll-into-view="{{activeRoundAnchor}}">
+      <view class="round-tabs">
+        <button wx:for="{{rounds}}" wx:key="id" id="{{item.id}}"
+          class="round-tab {{index === activeRoundIndex ? 'active' : ''}}"
+          data-index="{{index}}" bindtap="selectRound">
+          <text>{{item.label}}</text><text>{{item.count}} 场</text>
+        </button>
+      </view>
+    </scroll-view>
+
+    <view wx:if="{{visibleMatches.length}}" class="round-content">
+      <view class="round-heading">
+        <view><text>ROUND</text><text>{{rounds[activeRoundIndex].label}}</text></view>
+        <text>{{visibleMatches.length}} 场对阵</text>
+      </view>
+
+      <view class="draw-list">
+        <view wx:for="{{visibleMatches}}" wx:key="id" class="draw-match {{item.isFocus ? 'focus' : ''}}">
+          <view class="match-topline">
+            <text wx:if="{{item.isFocus}}" class="focus-tag">当前比赛</text>
+            <text wx:else class="match-status">{{item.statusText}}</text>
+            <text>{{item.date}} · {{item.time || '时间待定'}}</text>
+          </view>
+          <view wx:for="{{item.players}}" wx:key="id" wx:for-item="player" class="draw-player {{player.winner ? 'winner' : ''}}">
+            <text class="country">{{player.country}}</text>
+            <view class="player-name">
+              <text>{{player.primary}}</text>
+              <text wx:if="{{player.secondary}}">{{player.secondary}}</text>
+            </view>
+            <text class="player-rank">{{player.rank}}</text>
+            <view wx:if="{{player.scores.length}}" class="player-sets">
+              <text wx:for="{{player.scores}}" wx:key="*this" wx:for-item="score">{{score}}</text>
+            </view>
+            <text wx:if="{{player.winner}}" class="winner-mark">✓</text>
+          </view>
+          <text wx:if="{{item.court}}" class="court-name">{{item.court}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:else class="empty-round">本轮对阵尚未公布</view>
+
+    <view class="draw-note">
+      <text>签表根据已采集的比赛按轮次整理；尚未公布或早于采集范围的场次可能暂时缺失。</text>
+      <button wx:if="{{tournament.drawUrl}}" bindtap="openOfficialDraw">复制官方签表地址</button>
+    </view>
+  </view>
+</view>

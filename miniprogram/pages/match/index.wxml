@@ -20,6 +20,30 @@
   </view>
 
   <view class="detail-body">
+    <view wx:if="{{broadcasts.length}}" class="broadcast-panel">
+      <view class="broadcast-heading">
+        <view><text class="live-dot"></text><text>已核实直播入口</text></view>
+        <text>具体场次</text>
+      </view>
+      <button wx:for="{{broadcasts}}" wx:key="platform" class="broadcast-button"
+        data-index="{{index}}" bindtap="openBroadcast">
+        <text class="play-icon">{{item.canDirectOpen ? '↗' : '⧉'}}</text>
+        <view><text>{{item.label}}</text><text>{{item.hint}}</text></view>
+        <text class="broadcast-arrow">›</text>
+      </button>
+    </view>
+
+    <button wx:if="{{match.tournamentId}}" class="draw-entry" bindtap="openDraw">
+      <view class="draw-glyph">
+        <view></view><view></view><view></view>
+      </view>
+      <view class="draw-entry-copy">
+        <text>查看赛事签表</text>
+        <text>按轮次查看全部对阵与晋级路线</text>
+      </view>
+      <text class="draw-entry-arrow">›</text>
+    </button>
+
     <view class="facts">
       <view wx:for="{{facts}}" wx:key="label" class="fact">
         <text>{{item.label}}</text><text class="fact-value">{{item.value}}</text>
@@ -36,7 +60,7 @@
     </view>
 
     <view class="section">
-      <view class="section-heading"><text>比赛技术统计</text><text wx:if="{{stats.length}}" class="section-note">球员 1 / 球员 2</text></view>
+      <view class="section-heading"><text>比赛技术统计</text><text wx:if="{{stats.length}}" class="section-note">左侧 / 右侧球员</text></view>
       <view wx:if="{{stats.length}}">
         <view wx:for="{{stats}}" wx:key="label" class="stat-row">
           <text class="stat-value">{{item.left}}</text><text>{{item.label}}</text><text class="stat-value">{{item.right}}</text>
@@ -45,6 +69,7 @@
       <view wx:else class="no-stats">
         {{match.status === 'finished' ? '数据源暂未提供本场技术统计' : '比赛结束后，如数据源提供则在这里显示'}}
       </view>
+      <button wx:if="{{statsSource}}" class="stats-source" bindtap="copyStatsSource">{{statsSource}} · 复制官方链接</button>
     </view>
 
     <view class="source-note">

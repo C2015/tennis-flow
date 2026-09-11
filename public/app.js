@@ -136,11 +136,13 @@ function matchCard(match) {
   const card = document.createElement("button");
   card.type = "button";
   card.className = "match-card";
-  const sets = match.status === "finished"
+  const status = displayStatus(match);
+  const statusText = status === "finished" ? "已完赛" : status === "in_progress" ? "进行中" : status === "cancelled" ? "已取消" : status === "postponed" ? "已延期" : "待开赛";
+  const sets = (match.setScores || []).length
     ? `<div class="sets">${(match.setScores || []).map((set) => `<span class="set"><i class="${set.p1 > set.p2 ? "won" : ""}">${set.p1}</i><i class="${set.p2 > set.p1 ? "won" : ""}">${set.p2}</i></span>`).join("")}</div>`
-    : `<span class="scheduled-label">待开赛</span>`;
+    : `<span class="scheduled-label">${statusText}</span>`;
   card.innerHTML = `
-    <span class="match-time"><strong>${escapeHTML(match.time || "待定")}</strong><small>${match.status === "finished" ? "已完赛" : escapeHTML(match.round || "赛程")}</small></span>
+    <span class="match-time"><strong>${escapeHTML(match.time || "待定")}</strong><small>${status === "finished" || status === "in_progress" ? statusText : escapeHTML(match.round || "赛程")}</small></span>
     <span class="players">
       ${playerRow(match.player1, match.player1Zh, match.player1Country, match.player1Rank, match.winner === 1)}
       ${playerRow(match.player2, match.player2Zh, match.player2Country, match.player2Rank, match.winner === 2)}
@@ -148,6 +150,12 @@ function matchCard(match) {
     ${sets}<span class="chevron">›</span>`;
   card.addEventListener("click", () => openMatch(match));
   return card;
+}
+
+function displayStatus(match) {
+  if (match.status !== "scheduled") return match.status;
+  const hasScore = (match.setScores || []).some((set) => Number(set.p1) > 0 || Number(set.p2) > 0) || String(match.score || "").trim();
+  return hasScore ? "in_progress" : match.status;
 }
 
 function playerRow(name, nameZh, country, rank, winner) {
@@ -163,6 +171,13 @@ function openMatch(match) {
   const sourceNote = match.sourceUrl
     ? `<p class="demo-note">数据来自 <a href="${escapeHTML(match.sourceUrl)}" target="_blank" rel="noreferrer">${sourceName}</a>。开赛时间、场地、排名和技术统计仅在来源提供时展示。</p>`
     : `<p class="demo-note">这是一条本地演示记录，仅用于界面预览，不代表真实赛程或赛果。</p>`;
+  const broadcasts = (match.broadcasts || []).filter((item) => item.watchUrl).map((item) => `
+    <a class="broadcast-link" href="${escapeHTML(item.watchUrl)}" target="_blank" rel="noreferrer">
+      <span class="broadcast-play">↗</span>
+      <span><strong>${escapeHTML(item.label)}</strong><small>${escapeHTML(item.platformName)}${item.confidence === "event" ? " · 具体场次以节目单为准" : ""}</small></span>
+      <i>↗</i>
+    </a>`).join("");
+  const broadcastPanel = broadcasts ? `<div class="broadcast-panel"><div class="broadcast-title"><strong>已核实直播入口</strong><small>具体场次</small></div>${broadcasts}</div>` : "";
   els.dialogContent.innerHTML = `
     <div class="dialog-hero">
       <span class="dialog-kicker">${escapeHTML(match.tour)} · ${escapeHTML(match.level)} · ${escapeHTML(match.round || "")}</span>
@@ -172,6 +187,7 @@ function openMatch(match) {
         <div class="dialog-score">${escapeHTML(match.score || "VS")}</div>
         <div class="dialog-player"><strong>${escapeHTML(player2.primary)}</strong>${player2.secondary ? `<small>${escapeHTML(player2.secondary)}</small>` : ""}<span>${escapeHTML(match.player2Country || "—")} · ${match.player2Rank ? `世界 #${match.player2Rank}` : "暂无排名"}</span></div>
       </div>
+      ${broadcastPanel}
     </div>
     <div class="dialog-body">
       <div class="match-facts">
@@ -182,15 +198,22 @@ function openMatch(match) {
       <div class="stats-title"><h3>比赛技术统计</h3><span>${stats ? "球员 1 / 球员 2" : ""}</span></div>
       ${stats ? [
         stat("ACE 球", stats.aces), stat("双误", stats.doubleFaults),
-        stat("一发成功率", stats.firstServe, "%"), stat("破发成功", stats.breakPoints)
-      ].join("") : `<p class="no-stats">${match.status === "finished" ? "数据源暂未提供本场技术统计" : "比赛结束后，如数据源提供则在这里显示"}</p>`}
+        stat("一发成功率", stats.firstServe, "%"), stat("一发得分率", stats.firstServePointsWon, "%"),
+        stat("二发得分率", stats.secondServePointsWon, "%"), stat("破发成功", stats.breakPoints),
+        stat("网前得分", stats.netPoints), stat("制胜分", stats.winners),
+        stat("非受迫性失误", stats.unforcedErrors), stat("总得分", stats.totalPointsWon),
+        stat("最快发球", stats.fastestServe)
+      ].filter(Boolean).join("") : `<p class="no-stats">${match.status === "finished" ? "数据源暂未提供本场技术统计" : "比赛结束后，如数据源提供则在这里显示"}</p>`}
+      ${stats?.sourceUrl ? `<p class="demo-note">技术统计来自 <a href="${escapeHTML(stats.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHTML(stats.source || "赛事官方数据")}</a>。</p>` : ""}
       ${sourceNote}
     </div>`;
   els.dialog.showModal();
 }
 
 const fact = (label, value) => `<div class="fact"><span>${label}</span><strong>${escapeHTML(value)}</strong></div>`;
-const stat = (label, values = ["—", "—"], suffix = "") => `<div class="stat-row"><strong>${values?.[0] ?? "—"}${suffix}</strong><label>${label}</label><strong>${values?.[1] ?? "—"}${suffix}</strong></div>`;
+const stat = (label, values, suffix = "") => Array.isArray(values) && values.some((value) => value != null)
+  ? `<div class="stat-row"><strong>${escapeHTML(`${values[0] ?? "—"}${values[0] == null ? "" : suffix}`)}</strong><label>${label}</label><strong>${escapeHTML(`${values[1] ?? "—"}${values[1] == null ? "" : suffix}`)}</strong></div>`
+  : "";
 const playerDisplay = (name, nameZh) => prefersChinese && nameZh ? { primary: nameZh, secondary: name } : { primary: name, secondary: null };
 
 async function loadHealth() {

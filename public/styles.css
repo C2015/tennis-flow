@@ -126,6 +126,14 @@ footer div { display: flex; gap: 8px; align-items: center; }.status-dot { width:
 .dialog-players { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; }
 .dialog-player:last-child { text-align: right; }.dialog-player strong { display: block; font-size: 16px; }.dialog-player small { display: block; color: #d4ddd8; font: 400 10px/1.2 "Oswald", sans-serif; margin: 3px 0; }.dialog-player span { color: #9fb1a9; font-size: 11px; }
 .dialog-score { color: var(--lime); font: 600 26px/1 "Oswald", sans-serif; }
+.broadcast-panel { margin-top: 24px; padding: 14px; border: 1px solid rgba(217,255,67,.2); border-radius: 16px; background: rgba(7,27,22,.45); }
+.broadcast-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.broadcast-title strong { font-size: 12px; }
+.broadcast-title strong::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px rgba(255,119,95,.13); vertical-align: 1px; }
+.broadcast-title small { color: #91a59b; font-size: 9px; }
+.broadcast-link { display: grid; grid-template-columns: 30px minmax(0,1fr) 20px; align-items: center; min-height: 52px; margin-top: 7px; padding: 8px 12px; color: var(--ink); background: var(--lime); border-radius: 11px; text-decoration: none; }
+.broadcast-link strong, .broadcast-link small { display: block; }
+.broadcast-link strong { font-size: 12px; }.broadcast-link small { margin-top: 3px; color: #536047; font-size: 9px; }.broadcast-link i { font-style: normal; text-align: right; }
 .dialog-body { padding: 26px 28px 30px; }
 .match-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 24px; }
 .fact { background: var(--paper); border-radius: 12px; padding: 11px; }.fact span { display: block; color: #7c847f; font-size: 9px; }.fact strong { display: block; margin-top: 4px; font-size: 12px; }

@@ -13,7 +13,8 @@
     "checkInvalidKey": true,
     "checkSiteMap": true,
     "useApiHook": true,
-    "useApiHostProcess": true
+    "useApiHostProcess": true,
+    "minifyWXML": true
   },
   "condition": {}
 }
