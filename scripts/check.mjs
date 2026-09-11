@@ -62,6 +62,9 @@ if (officialStats?.aces?.join(",") !== "3,7" || officialStats.breakPoints?.[1] !
 if (stats.usOpenTournamentDay("2026-09-08") !== 17 || stats.usOpenTournamentDay("2025-08-24") !== 8) {
   throw new Error("US Open tournament day calculation failed");
 }
+if (stats.normalizePlayerName("Zheng Qinwen") !== stats.normalizePlayerName("Qinwen Zheng")) {
+  throw new Error("Chinese player name order normalization failed");
+}
 const nonMajorBroadcastResult = broadcasts.broadcastsForMatch(
   { id: "match-3", date: "2026-09-10", status: "in_progress", tournament: "Test Open", tour: "ATP", level: "ATP 500", country: "USA" },
   [],

@@ -1,12 +1,13 @@
 export const US_OPEN_HOST = "https://www.usopen.org";
 
 export function normalizePlayerName(value) {
-  return String(value || "")
+  const normalized = String(value || "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+  return normalized.split(/\s+/).filter(Boolean).sort().join(" ");
 }
 
 export function playerPairKey(names) {

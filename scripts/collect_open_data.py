@@ -225,7 +225,7 @@ def enrich_chinese_names(matches):
 def normalized_name(value):
     decomposed = unicodedata.normalize("NFKD", value or "")
     ascii_name = "".join(character for character in decomposed if not unicodedata.combining(character))
-    return " ".join(re.sub(r"[^a-z0-9]+", " ", ascii_name.casefold()).split())
+    return " ".join(sorted(re.sub(r"[^a-z0-9]+", " ", ascii_name.casefold()).split()))
 
 
 def player_pair_key(names):
