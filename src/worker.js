@@ -6,7 +6,15 @@ import {
   scoreboardUpdateStatus
 } from "./adaptive.js";
 import { broadcastsForMatch } from "./broadcasts.js";
-import { fetchUsOpenLiveStats, playerPairKey, usOpenStats } from "./stats.js";
+import {
+  US_OPEN_HOST,
+  fetchUsOpenJson,
+  fetchUsOpenLiveStats,
+  playerPairKey,
+  usOpenPlayerName,
+  usOpenStats,
+  usOpenTournamentDay
+} from "./stats.js";
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
@@ -236,6 +244,7 @@ async function runAdaptiveSync(env, now) {
     if (result.status === "success") successfulGroups += 1;
     else failedGroups += 1;
   }
+  updated += await refreshMissingUsOpenStats(env, now);
   const status = failedGroups ? "partial_error" : "success";
   await recordAdaptiveCronRun(env, {
     scheduledAt, activeGroups, requestedGroups, successfulGroups, failedGroups, updated, status, message: null
@@ -260,6 +269,75 @@ async function runAdaptiveSync(env, now) {
     console.error(JSON.stringify({ event: "adaptive_cron_failed", checkedAt: scheduledAt, error: message }));
     throw error;
   }
+}
+
+async function refreshMissingUsOpenStats(env, now) {
+  const earliestDate = beijingDate(new Date(now.getTime() - 3 * 86_400_000));
+  const latestDate = beijingDate(now);
+  const result = await env.DB.prepare(`
+    SELECT m.id,m.match_date AS date,p1.name AS player1,p2.name AS player2
+    FROM matches m
+    JOIN tournaments t ON t.id=m.tournament_id
+    JOIN players p1 ON p1.id=m.player1_id
+    JOIN players p2 ON p2.id=m.player2_id
+    WHERE lower(t.name) LIKE '%us open%'
+      AND m.stats IS NULL
+      AND m.match_date BETWEEN ?1 AND ?2
+      AND (m.status='finished' OR ifnull(m.score,'')<>'')
+  `).bind(earliestDate, latestDate).all();
+  const targets = result.results || [];
+  if (!targets.length) return 0;
+
+  const years = new Set(targets.map((match) => match.date.slice(0, 4)));
+  const urls = new Set([...years].map((year) => `${US_OPEN_HOST}/en_US/scores/feeds/${year}/matches/live/scores.json`));
+  for (const target of targets) {
+    for (const offset of [0, -1]) {
+      const officialDate = addIsoDays(target.date, offset);
+      const day = usOpenTournamentDay(officialDate);
+      if (day) urls.add(`${US_OPEN_HOST}/en_US/scores/feeds/${target.date.slice(0, 4)}/completed_matches/days/day_${day}.json`);
+    }
+  }
+
+  const candidates = new Map();
+  const feeds = await Promise.allSettled([...urls].map((url) => fetchUsOpenJson(url)));
+  for (const feed of feeds) {
+    if (feed.status !== "fulfilled") continue;
+    for (const match of Array.isArray(feed.value?.matches) ? feed.value.matches : []) {
+      const names = [usOpenPlayerName(match.team1), usOpenPlayerName(match.team2)];
+      if (names.every(Boolean)) candidates.set(playerPairKey(names), match);
+    }
+  }
+
+  const resolved = await Promise.all(targets.map(async (target) => {
+    const names = [target.player1, target.player2];
+    let officialMatch = candidates.get(playerPairKey(names));
+    if (!officialMatch) return null;
+    if (!officialMatch.base_stats && officialMatch.match_id) {
+      try {
+        const payload = await fetchUsOpenJson(`${US_OPEN_HOST}/en_US/scores/feeds/${target.date.slice(0, 4)}/matches/complete/${officialMatch.match_id}.json`);
+        officialMatch = payload?.matches?.[0];
+      } catch {
+        return null;
+      }
+    }
+    const stats = officialMatch ? usOpenStats(officialMatch, names) : null;
+    return stats ? { id: target.id, stats } : null;
+  }));
+  const updates = resolved.filter(Boolean);
+  if (!updates.length) return 0;
+  const outcomes = await env.DB.batch(updates.map((item) => env.DB.prepare(`
+    UPDATE matches SET stats=?1,updated_at=CURRENT_TIMESTAMP
+    WHERE id=?2 AND stats IS NULL
+  `).bind(JSON.stringify(item.stats), item.id)));
+  const changed = outcomes.reduce((total, outcome) => total + Number(outcome.meta?.changes || 0), 0);
+  console.log(JSON.stringify({ event: "official_stats_backfill", targets: targets.length, updated: changed }));
+  return changed;
+}
+
+function addIsoDays(value, amount) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
 }
 
 async function refreshScoreboardGroup(env, group, now) {

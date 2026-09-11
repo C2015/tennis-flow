@@ -59,6 +59,9 @@ const officialStats = stats.usOpenStats({
 if (officialStats?.aces?.join(",") !== "3,7" || officialStats.breakPoints?.[1] !== "5/16" || officialStats.totalPointsWon?.[0] !== 164) {
   throw new Error("US Open technical statistics normalization failed");
 }
+if (stats.usOpenTournamentDay("2026-09-08") !== 17 || stats.usOpenTournamentDay("2025-08-24") !== 8) {
+  throw new Error("US Open tournament day calculation failed");
+}
 const nonMajorBroadcastResult = broadcasts.broadcastsForMatch(
   { id: "match-3", date: "2026-09-10", status: "in_progress", tournament: "Test Open", tour: "ATP", level: "ATP 500", country: "USA" },
   [],

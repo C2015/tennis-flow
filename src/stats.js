@@ -1,4 +1,4 @@
-const US_OPEN_HOST = "https://www.usopen.org";
+export const US_OPEN_HOST = "https://www.usopen.org";
 
 export function normalizePlayerName(value) {
   return String(value || "")
@@ -15,6 +15,30 @@ export function playerPairKey(names) {
 
 export function usOpenPlayerName(team = {}) {
   return [team.firstNameA, team.lastNameA].filter(Boolean).join(" ").trim();
+}
+
+export function usOpenTournamentDay(dateValue) {
+  const match = String(dateValue || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [year, month, day] = match.slice(1).map(Number);
+  const septemberFirst = new Date(Date.UTC(year, 8, 1));
+  const daysToMonday = (8 - septemberFirst.getUTCDay()) % 7;
+  const laborDay = new Date(septemberFirst.getTime() + daysToMonday * 86_400_000);
+  const fanWeekStart = new Date(laborDay.getTime() - 15 * 86_400_000);
+  const target = new Date(Date.UTC(year, month - 1, day));
+  const tournamentDay = Math.round((target.getTime() - fanWeekStart.getTime()) / 86_400_000) + 1;
+  return tournamentDay >= 1 && tournamentDay <= 22 ? tournamentDay : null;
+}
+
+export async function fetchUsOpenJson(url, fetcher = fetch) {
+  const response = await fetcher(url, {
+    headers: { accept: "application/json", "user-agent": "TennisFlow/0.4" },
+    signal: AbortSignal.timeout(12_000)
+  });
+  if (!response.ok) throw new Error(`US Open stats returned ${response.status}`);
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > 5_000_000) throw new Error("US Open stats response exceeded 5MB");
+  return response.json();
 }
 
 export function usOpenStats(match, requestedNames = []) {
@@ -64,14 +88,7 @@ export function usOpenStats(match, requestedNames = []) {
 
 export async function fetchUsOpenLiveStats(year, fetcher = fetch) {
   const url = `${US_OPEN_HOST}/en_US/scores/feeds/${year}/matches/live/scores.json`;
-  const response = await fetcher(url, {
-    headers: { accept: "application/json", "user-agent": "TennisFlow/0.4" },
-    signal: AbortSignal.timeout(12_000)
-  });
-  if (!response.ok) throw new Error(`US Open stats returned ${response.status}`);
-  const contentLength = Number(response.headers.get("content-length") || 0);
-  if (contentLength > 5_000_000) throw new Error("US Open stats response exceeded 5MB");
-  const payload = await response.json();
+  const payload = await fetchUsOpenJson(url, fetcher);
   const result = new Map();
   for (const match of Array.isArray(payload?.matches) ? payload.matches : []) {
     const names = [usOpenPlayerName(match.team1), usOpenPlayerName(match.team2)];
