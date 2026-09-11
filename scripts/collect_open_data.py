@@ -298,22 +298,17 @@ def enrich_us_open_stats(matches, start_date, end_date):
     year = start_date.year
     target_dates = {datetime.fromisoformat(match["date"]).date() for match in targets}
     official_dates = target_dates | {date - timedelta(days=1) for date in target_dates}
-    try:
-        event_days = fetch_json(f"{US_OPEN}/en_US/scores/feeds/{year}/completed_matches/eventDays.json")
-    except Exception as error:
-        print(f"US Open statistics lookup skipped: {error}")
-        return 0
-
     urls = [f"{US_OPEN}/en_US/scores/feeds/{year}/matches/live/scores.json"]
-    for item in event_days.get("eventDays", []):
-        message = item.get("message", "")
-        try:
-            calendar_text = message.split(",", 1)[1].strip()
-            event_date = datetime.strptime(f"{calendar_text} {year}", "%B %d %Y").date()
-        except (IndexError, ValueError):
-            continue
-        if event_date in official_dates:
-            urls.append(item["url"])
+    # US Open feed day 1 is the Sunday before main-draw week. Deriving the
+    # file number avoids the eventDays index, which is slow from GitHub runners.
+    september_first = datetime(year, 9, 1).date()
+    labor_day = september_first + timedelta(days=(7 - september_first.weekday()) % 7)
+    main_draw_start = labor_day - timedelta(days=8)
+    fan_week_start = main_draw_start - timedelta(days=7)
+    for event_date in sorted(official_dates):
+        tournament_day = (event_date - fan_week_start).days + 1
+        if 1 <= tournament_day <= 22:
+            urls.append(f"{US_OPEN}/en_US/scores/feeds/{year}/completed_matches/days/day_{tournament_day}.json")
 
     candidates = {}
     with ThreadPoolExecutor(max_workers=4) as executor:
