@@ -3,6 +3,13 @@
     <text class="kicker">{{match.tour}} · {{match.level}} · {{match.roundText}}</text>
     <text class="tournament">{{match.tournament}}</text>
     <view class="status-line"><view></view><text>{{match.statusText}}</text></view>
+    <view class="venue-line">
+      <view class="venue-mark"><view></view></view>
+      <view class="venue-copy">
+        <text>{{match.hasExactCourt ? '比赛场地' : '赛事地点'}}</text>
+        <text>{{match.courtText}}</text>
+      </view>
+    </view>
 
     <view class="versus">
       <view class="competitor left">
@@ -38,8 +45,8 @@
         <view></view><view></view><view></view>
       </view>
       <view class="draw-entry-copy">
-        <text>查看赛事签表</text>
-        <text>按轮次查看全部对阵与晋级路线</text>
+        <text>赛事签表</text>
+        <text>对阵与晋级</text>
       </view>
       <text class="draw-entry-arrow">›</text>
     </button>

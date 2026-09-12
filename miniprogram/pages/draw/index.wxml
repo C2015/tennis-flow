@@ -37,7 +37,7 @@
       <view class="draw-list">
         <view wx:for="{{visibleMatches}}" wx:key="id" class="draw-match {{item.isFocus ? 'focus' : ''}}">
           <view class="match-topline">
-            <text wx:if="{{item.isFocus}}" class="focus-tag">当前比赛</text>
+            <text wx:if="{{item.isFocus}}" class="focus-tag">当前比赛 · {{item.statusText}}</text>
             <text wx:else class="match-status">{{item.statusText}}</text>
             <text>{{item.date}} · {{item.time || '时间待定'}}</text>
           </view>
@@ -54,6 +54,10 @@
             <text wx:if="{{player.winner}}" class="winner-mark">✓</text>
           </view>
           <text wx:if="{{item.court}}" class="court-name">{{item.court}}</text>
+          <view wx:if="{{item.advanceText}}" class="advance-line">
+            <text>{{item.advanceText}}</text>
+            <button wx:if="{{item.nextText}}" data-index="{{item.nextRoundIndex}}" bindtap="openNextRound">{{item.nextText}} ›</button>
+          </view>
         </view>
       </view>
     </view>

@@ -31,7 +31,7 @@ Page({
       broadcasts: Array.isArray(match.broadcasts) ? match.broadcasts : [],
       facts: [
         { label: "北京时间", value: `${match.date} ${match.time || "待定"}` },
-        { label: "比赛场地", value: match.court || "待公布" },
+        { label: "比赛场地", value: match.courtText },
         { label: "场地类型", value: match.surface || "待公布" },
         { label: "赛制", value: match.bestOf ? `${match.bestOf} 盘制` : "待公布" }
       ],

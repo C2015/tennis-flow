@@ -19,6 +19,7 @@ function normalizeMatch(match) {
   const rawSetScores = Array.isArray(match.setScores) ? match.setScores : [];
   const hasScore = rawSetScores.some((set) => Number(set.p1) > 0 || Number(set.p2) > 0) || String(match.score || "").trim();
   const status = match.status === "scheduled" && hasScore ? "in_progress" : match.status;
+  const location = [match.city, match.country].filter(Boolean).join(" · ");
   return {
     ...match,
     status,
@@ -31,6 +32,8 @@ function normalizeMatch(match) {
     statusText: STATUS_TEXT[status] || "赛程",
     timeText: match.time || "待定",
     roundText: match.round || "轮次待定",
+    courtText: match.court || location || "场地待公布",
+    hasExactCourt: Boolean(match.court),
     setScores: rawSetScores.map((set, index) => ({
       ...set,
       setIndex: index,

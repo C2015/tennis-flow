@@ -1,5 +1,5 @@
 .draw-page { min-height: 100vh; color: #071b16; background: #f2f1e9; }
-.draw-hero { position: relative; overflow: hidden; min-height: 260rpx; padding: 44rpx 34rpx 34rpx; color: #f2f1e9; background: #0c2d24; }
+.draw-hero { position: relative; overflow: hidden; padding: 28rpx 30rpx; color: #f2f1e9; background: #0c2d24; }
 .hero-kicker, .hero-title, .hero-meta { position: relative; z-index: 1; }
 .hero-kicker { color: #d9ff43; font-family: "DIN Alternate", sans-serif; font-size: 19rpx; letter-spacing: 2rpx; }
 .hero-title { display: block; max-width: 610rpx; margin-top: 16rpx; font-size: 38rpx; font-weight: 850; line-height: 1.28; }
@@ -23,10 +23,10 @@
 .round-heading > view text:first-child { color: #8b938e; font-family: "DIN Alternate", sans-serif; font-size: 15rpx; letter-spacing: 3rpx; }
 .round-heading > view text:last-child { margin-top: 3rpx; font-size: 29rpx; font-weight: 900; }
 .round-heading > text { color: #7e8882; font-size: 19rpx; }
-.draw-list { position: relative; padding-left: 24rpx; }
-.draw-list::before { content: ""; position: absolute; left: 5rpx; top: 36rpx; bottom: 36rpx; width: 2rpx; background: #c7cbc3; }
+.draw-list { position: relative; }
+.draw-list::before { display: none; }
 .draw-match { position: relative; margin-bottom: 18rpx; padding: 18rpx 18rpx 14rpx; background: #e5e4d9; border: 2rpx solid transparent; border-radius: 20rpx; }
-.draw-match::before { content: ""; position: absolute; left: -25rpx; top: 35rpx; width: 13rpx; height: 13rpx; background: #9ba49f; border: 7rpx solid #f2f1e9; border-radius: 50%; }
+.draw-match::before { display: none; }
 .draw-match.focus { background: #fffef7; border-color: #0c2d24; box-shadow: 0 13rpx 34rpx rgba(7,27,22,.1); }
 .draw-match.focus::before { background: #d9ff43; box-shadow: 0 0 0 3rpx #0c2d24; }
 .match-topline { display: flex; align-items: center; justify-content: space-between; min-height: 30rpx; padding-bottom: 12rpx; color: #7a847e; font-size: 17rpx; }
@@ -58,3 +58,12 @@
 .state-copy { margin-top: 12rpx; color: #758079; font-size: 21rpx; }
 .draw-state button { width: 210rpx; margin-top: 28rpx; color: #d9ff43; background: #0c2d24; border-radius: 100rpx; font-size: 21rpx; }
 .empty-round { padding: 100rpx 30rpx; color: #758079; font-size: 22rpx; text-align: center; }
+.draw-match { background: #fffef9; border-color: #e0e2d9; border-radius: 14rpx; }
+.draw-match.focus { box-shadow: none; }
+.draw-player.winner { background: #edf3e7; }
+.draw-player { grid-template-columns: 44rpx minmax(0,1fr) 44rpx auto 24rpx; min-height: 82rpx; }
+.player-sets text { width: 34rpx; font-size: 25rpx; }
+.advance-line { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid #e0e2d9; color: #375c45; font-size: 21rpx; line-height: 1.6; }
+.advance-line button { margin: 6rpx 0 0; padding: 0; background: transparent; color: #53655b; font-size: 21rpx; line-height: 1.6; text-align: left; }
+.advance-line button::after { border: 0; }
+.draw-note { background: transparent; color: #7c847e; padding: 0; font-size: 20rpx; }

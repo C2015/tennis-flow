@@ -98,6 +98,18 @@ Page({
         .map(([raw, items], index) => ({ raw, label: roundLabel(raw), matches: items, id: `round-${index}` }))
         .sort((left, right) => roundWeight(left.raw) - roundWeight(right.raw))
         .map((round, index) => ({ ...round, id: `round-${index}`, count: round.matches.length }));
+      rounds.forEach((round, index) => {
+        round.matches.forEach((match) => {
+          const winner = match.players.find((player) => player.winner);
+          const nextRound = rounds[index + 1];
+          const next = winner && winner.id && nextRound && nextRound.matches.find((candidate) =>
+            candidate.players.some((player) => player.id === winner.id));
+          match.advanceText = winner ? `${winner.primary} ${round.label === "决赛" ? "夺冠" : "获胜"}` : "";
+          match.nextMatchId = next ? next.id : "";
+          match.nextRoundIndex = index + 1;
+          match.nextText = next ? `${nextRound.label} · ${next.players.map((player) => player.primary).join(" vs ")}` : "";
+        });
+      });
       let activeRoundIndex = rounds.findIndex((round) => round.matches.some((match) => match.isFocus));
       if (activeRoundIndex < 0) {
         activeRoundIndex = rounds.findIndex((round) => round.matches.some((match) => match.status === "in_progress"));
@@ -128,6 +140,13 @@ Page({
 
   retry() {
     this.loadDraw();
+  },
+
+  openNextRound(event) {
+    const index = Number(event.currentTarget.dataset.index);
+    const round = this.data.rounds[index];
+    if (!round) return;
+    this.setData({ activeRoundIndex: index, activeRoundAnchor: round.id, visibleMatches: round.matches });
   },
 
   openOfficialDraw() {
