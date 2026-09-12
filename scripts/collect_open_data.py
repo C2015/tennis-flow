@@ -236,7 +236,7 @@ def us_open_player_name(team):
     return " ".join(filter(None, (team.get("firstNameA"), team.get("lastNameA")))).strip()
 
 
-def us_open_stats(match, requested_names):
+def us_open_stats(match, requested_names, phase="live"):
     base = match.get("base_stats", {}).get("match", {})
     if not base.get("team_1") or not base.get("team_2"):
         return None
@@ -272,6 +272,7 @@ def us_open_stats(match, requested_names):
     return {
         "source": "US Open 官方数据",
         "sourceUrl": f"{US_OPEN}/en_US/scores/stats/{match_id}.html",
+        "phase": phase,
         "aces": pair("t_ace"),
         "doubleFaults": pair("df"),
         "firstServe": pair("f_srv_pct"),
@@ -286,12 +287,26 @@ def us_open_stats(match, requested_names):
     }
 
 
+def complete_us_open_stats(stats):
+    if not stats or stats.get("phase") != "final":
+        return False
+    totals = stats.get("totalPointsWon")
+    first_serve = stats.get("firstServe")
+    return (
+        isinstance(totals, list) and len(totals) == 2
+        and all(isinstance(value, (int, float)) and value > 0 for value in totals)
+        and sum(totals) >= 24
+        and isinstance(first_serve, list) and len(first_serve) == 2
+        and all(isinstance(value, (int, float)) and 0 < value <= 100 for value in first_serve)
+    )
+
+
 def enrich_us_open_stats(matches, start_date, end_date):
     """Attach official US Open statistics only when the player pairing is an exact match."""
     targets = [
         match for match in matches
         if "us open" in match["tournament"]["name"].casefold()
-        and (match["status"] == "finished" or bool(match.get("score")))
+        and match["status"] == "finished"
     ]
     if not targets:
         return 0
@@ -326,9 +341,6 @@ def enrich_us_open_stats(matches, start_date, end_date):
         official_match = candidates.get(player_pair_key(names))
         if not official_match:
             continue
-        if official_match.get("base_stats"):
-            target["stats"] = us_open_stats(official_match, names)
-            continue
         match_id = official_match.get("match_id")
         if match_id:
             details.append(f"{US_OPEN}/en_US/scores/feeds/{year}/matches/complete/{match_id}.json")
@@ -339,7 +351,9 @@ def enrich_us_open_stats(matches, start_date, end_date):
             for target, payload in zip(target_matches, executor.map(try_fetch_json, details)):
                 official_match = (payload.get("matches") or [None])[0]
                 if official_match:
-                    target["stats"] = us_open_stats(official_match, [player["name"] for player in target["players"]])
+                    stats = us_open_stats(official_match, [player["name"] for player in target["players"]], "final")
+                    if complete_us_open_stats(stats):
+                        target["stats"] = stats
     return sum(bool(match.get("stats")) for match in targets)
 
 

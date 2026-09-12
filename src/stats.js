@@ -42,7 +42,7 @@ export async function fetchUsOpenJson(url, fetcher = fetch) {
   return response.json();
 }
 
-export function usOpenStats(match, requestedNames = []) {
+export function usOpenStats(match, requestedNames = [], { phase = "live" } = {}) {
   const base = match?.base_stats?.match;
   if (!base?.team_1 || !base?.team_2) return null;
 
@@ -73,6 +73,7 @@ export function usOpenStats(match, requestedNames = []) {
   return {
     source: "US Open 官方数据",
     sourceUrl: `${US_OPEN_HOST}/en_US/scores/stats/${match.match_id}.html`,
+    phase,
     aces: pair((team) => team.t_ace),
     doubleFaults: pair((team) => team.df),
     firstServe: pair((team) => team.f_srv_pct),
@@ -87,13 +88,33 @@ export function usOpenStats(match, requestedNames = []) {
   };
 }
 
+export function isCompleteUsOpenStats(stats) {
+  if (!stats || stats.phase !== "final") return false;
+  const totals = Array.isArray(stats.totalPointsWon) ? stats.totalPointsWon.map(Number) : [];
+  const firstServe = Array.isArray(stats.firstServe) ? stats.firstServe.map(Number) : [];
+  return totals.length === 2
+    && totals.every((value) => Number.isFinite(value) && value > 0)
+    && totals[0] + totals[1] >= 24
+    && firstServe.length === 2
+    && firstServe.every((value) => Number.isFinite(value) && value > 0 && value <= 100);
+}
+
+export async function fetchUsOpenCompleteStats(year, matchId, requestedNames, fetcher = fetch) {
+  if (!matchId) return null;
+  const url = `${US_OPEN_HOST}/en_US/scores/feeds/${year}/matches/complete/${matchId}.json`;
+  const payload = await fetchUsOpenJson(url, fetcher);
+  const match = Array.isArray(payload?.matches) ? payload.matches[0] : null;
+  const stats = match ? usOpenStats(match, requestedNames, { phase: "final" }) : null;
+  return isCompleteUsOpenStats(stats) ? stats : null;
+}
+
 export async function fetchUsOpenLiveStats(year, fetcher = fetch) {
   const url = `${US_OPEN_HOST}/en_US/scores/feeds/${year}/matches/live/scores.json`;
   const payload = await fetchUsOpenJson(url, fetcher);
   const result = new Map();
   for (const match of Array.isArray(payload?.matches) ? payload.matches : []) {
     const names = [usOpenPlayerName(match.team1), usOpenPlayerName(match.team2)];
-    const stats = usOpenStats(match, names);
+    const stats = usOpenStats(match, names, { phase: "live" });
     if (stats) result.set(playerPairKey(names), { match, stats });
   }
   return result;

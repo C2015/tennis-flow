@@ -55,9 +55,13 @@ const officialStats = stats.usOpenStats({
     team_2: { t_ace: 3, df: 7, f_srv_pct: 64, w_pct_f_srv: 69, w_pct_s_srv: 51, t_bp_w: 3, t_bp: 11, t_np_w: 27, t_na: 35, t_w: 38, t_ue: 53, t_f_srv_w: 77, t_s_srv_w: 32, t_p_w_opp_srv: 55 }
   } },
   serve_stats: { match: { team_1: { t_f_spd: ["240 KMH", "149 MPH"] }, team_2: { t_f_spd: ["208 KMH", "129 MPH"] } } }
-}, ["Carlos Alcaraz", "Ben Shelton"]);
+}, ["Carlos Alcaraz", "Ben Shelton"], { phase: "final" });
 if (officialStats?.aces?.join(",") !== "3,7" || officialStats.breakPoints?.[1] !== "5/16" || officialStats.totalPointsWon?.[0] !== 164) {
   throw new Error("US Open technical statistics normalization failed");
+}
+if (!stats.isCompleteUsOpenStats(officialStats)) throw new Error("Complete US Open statistics validation failed");
+if (stats.isCompleteUsOpenStats({ ...officialStats, totalPointsWon: [1, 1] })) {
+  throw new Error("US Open placeholder statistics must be rejected");
 }
 if (stats.usOpenTournamentDay("2026-09-08") !== 17 || stats.usOpenTournamentDay("2025-08-24") !== 8) {
   throw new Error("US Open tournament day calculation failed");

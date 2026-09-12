@@ -9,6 +9,7 @@ import { broadcastsForMatch } from "./broadcasts.js";
 import {
   US_OPEN_HOST,
   fetchUsOpenJson,
+  fetchUsOpenCompleteStats,
   fetchUsOpenLiveStats,
   playerPairKey,
   usOpenPlayerName,
@@ -281,9 +282,9 @@ async function refreshMissingUsOpenStats(env, now) {
     JOIN players p1 ON p1.id=m.player1_id
     JOIN players p2 ON p2.id=m.player2_id
     WHERE lower(t.name) LIKE '%us open%'
-      AND m.stats IS NULL
       AND m.match_date BETWEEN ?1 AND ?2
-      AND (m.status='finished' OR ifnull(m.score,'')<>'')
+      AND m.status='finished'
+      AND (m.stats IS NULL OR m.stats NOT LIKE '%"phase":"final"%')
   `).bind(earliestDate, latestDate).all();
   const targets = result.results || [];
   if (!targets.length) return 0;
@@ -310,24 +311,21 @@ async function refreshMissingUsOpenStats(env, now) {
 
   const resolved = await Promise.all(targets.map(async (target) => {
     const names = [target.player1, target.player2];
-    let officialMatch = candidates.get(playerPairKey(names));
+    const officialMatch = candidates.get(playerPairKey(names));
     if (!officialMatch) return null;
-    if (!officialMatch.base_stats && officialMatch.match_id) {
-      try {
-        const payload = await fetchUsOpenJson(`${US_OPEN_HOST}/en_US/scores/feeds/${target.date.slice(0, 4)}/matches/complete/${officialMatch.match_id}.json`);
-        officialMatch = payload?.matches?.[0];
-      } catch {
-        return null;
-      }
+    let stats = null;
+    try {
+      stats = await fetchUsOpenCompleteStats(target.date.slice(0, 4), officialMatch.match_id, names);
+    } catch {
+      return null;
     }
-    const stats = officialMatch ? usOpenStats(officialMatch, names) : null;
     return stats ? { id: target.id, stats } : null;
   }));
   const updates = resolved.filter(Boolean);
   if (!updates.length) return 0;
   const outcomes = await env.DB.batch(updates.map((item) => env.DB.prepare(`
     UPDATE matches SET stats=?1,updated_at=CURRENT_TIMESTAMP
-    WHERE id=?2 AND stats IS NULL
+    WHERE id=?2 AND ifnull(stats,'')<>?1
   `).bind(JSON.stringify(item.stats), item.id)));
   const changed = outcomes.reduce((total, outcome) => total + Number(outcome.meta?.changes || 0), 0);
   console.log(JSON.stringify({ event: "official_stats_backfill", targets: targets.length, updated: changed }));
@@ -368,7 +366,17 @@ async function refreshScoreboardGroup(env, group, now) {
         for (const item of updates) {
           if (!item.isUsOpen) continue;
           const officialMatch = official.get(playerPairKey(item.playerNames))?.match;
-          item.stats = officialMatch ? usOpenStats(officialMatch, item.playerNames) : null;
+          if (!officialMatch) {
+            item.stats = null;
+          } else if (item.status === "finished") {
+            item.stats = await fetchUsOpenCompleteStats(
+              group.date.slice(0, 4),
+              officialMatch.match_id,
+              item.playerNames
+            );
+          } else {
+            item.stats = usOpenStats(officialMatch, item.playerNames, { phase: "live" });
+          }
         }
       } catch (error) {
         console.warn(JSON.stringify({
