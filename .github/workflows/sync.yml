@@ -29,6 +29,8 @@ jobs:
           path: .cache/player-names-zh.json
           key: player-names-zh-${{ github.run_id }}
           restore-keys: player-names-zh-
+      - name: Verify tournament surface mappings
+        run: python -m unittest scripts/test_collect_open_data.py
       - name: Collect current tennis data
         run: python scripts/collect_open_data.py
       - name: Write normalized data to Cloudflare D1

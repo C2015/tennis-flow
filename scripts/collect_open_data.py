@@ -67,6 +67,37 @@ WTA_500_WORDS = (
     "linz", "zhengzhou",
 )
 
+# ESPN's tennis scoreboard exposes the venue and court, but not the playing
+# surface. Keep this deliberately conservative: use stable ESPN tournament IDs
+# for verified events and only use name rules for the four Grand Slams. Unknown
+# events remain empty instead of being guessed.
+SURFACE_BY_ESPN_EVENT_ID = {
+    "189": "硬地",   # US Open
+    "998": "红土",   # Montreux Nestlé Open
+    "1076": "红土",  # ATIK Antalya Open
+    "964": "硬地",   # Kia Open, Barranquilla
+    "887": "硬地",   # Guadalajara Open
+    "1005": "硬地",  # SP Open, São Paulo
+}
+GRAND_SLAM_SURFACES = (
+    (("australian open",), "硬地"),
+    (("roland garros", "french open"), "红土"),
+    (("wimbledon",), "草地"),
+    (("us open",), "硬地"),
+)
+
+
+def tournament_surface(event):
+    """Return a verified Chinese surface label, or None when not known."""
+    event_id = str(event.get("id") or "").split("-", 1)[0]
+    if event_id in SURFACE_BY_ESPN_EVENT_ID:
+        return SURFACE_BY_ESPN_EVENT_ID[event_id]
+    name = (event.get("name") or event.get("shortName") or "").casefold()
+    for aliases, surface in GRAND_SLAM_SURFACES:
+        if any(alias in name for alias in aliases):
+            return surface
+    return None
+
 
 def tournament_level(event_name, tour, is_major=False):
     """Classify polling priority conservatively; unknown events stay on the slow tier."""
@@ -415,7 +446,7 @@ def normalize(payload, start_date, end_date, requested_tour):
                         "name": f"{event_name} · {draw_name}",
                         "tour": tour,
                         "level": level,
-                        "surface": None,
+                        "surface": tournament_surface(event),
                         "city": city.strip() or None,
                         "country": country.strip() or None,
                         "drawUrl": draw_link(event),
