@@ -1,4 +1,5 @@
 const { normalizeMatch } = require("../../utils/match");
+const api = require("../../utils/api");
 
 Page({
   data: {
@@ -16,7 +17,15 @@ Page({
       setTimeout(() => wx.navigateBack(), 800);
       return;
     }
-    const match = normalizeMatch(stored);
+    this.applyMatch(stored);
+  },
+
+  onPullDownRefresh() {
+    this.refreshMatch().finally(() => wx.stopPullDownRefresh());
+  },
+
+  applyMatch(rawMatch) {
+    const match = normalizeMatch(rawMatch);
     this.setData({
       match,
       broadcasts: Array.isArray(match.broadcasts) ? match.broadcasts : [],
@@ -29,6 +38,22 @@ Page({
       stats: this.buildStats(match.stats),
       statsSource: match.stats && match.stats.source ? match.stats.source : ""
     });
+    wx.setStorageSync("tennis-flow:selected-match", rawMatch);
+  },
+
+  async refreshMatch() {
+    const current = this.data.match;
+    if (!current || !current.id || !current.date) return;
+    try {
+      const payload = await api.getMatches({ date: current.date, tour: "all" });
+      const matches = Array.isArray(payload.matches) ? payload.matches : [];
+      const latest = matches.find((match) => match.id === current.id);
+      if (!latest) throw new Error("暂未找到这场比赛的最新数据");
+      this.applyMatch(latest);
+      wx.showToast({ title: "比赛数据已刷新", icon: "success" });
+    } catch (error) {
+      wx.showToast({ title: error.message || "刷新失败，请稍后重试", icon: "none" });
+    }
   },
 
   openBroadcast(event) {
