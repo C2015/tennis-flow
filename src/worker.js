@@ -3,6 +3,7 @@ import {
   adaptiveDueReason,
   matchDisplayStatus,
   pollingIntervalMinutes,
+  scoreboardDateCandidates,
   scoreboardUpdateStatus
 } from "./adaptive.js";
 import { broadcastsForMatch } from "./broadcasts.js";
@@ -342,24 +343,55 @@ async function refreshScoreboardGroup(env, group, now) {
   const startedAt = Date.now();
   const checkedAt = now.toISOString();
   const nextCheckAt = new Date(now.getTime() + group.interval * 60_000).toISOString();
-  const compactDate = group.date.replaceAll("-", "");
-  const url = `${ESPN_SCOREBOARD}/${group.tour.toLowerCase()}/scoreboard?dates=${compactDate}`;
   let status = "success";
   let message = null;
   let updated = 0;
   let httpStatus = null;
 
   try {
-    const response = await fetch(url, {
-      headers: SCOREBOARD_HEADERS,
-      signal: AbortSignal.timeout(15_000)
-    });
-    httpStatus = response.status;
-    if (!response.ok) throw new Error(`ESPN returned ${response.status}`);
-    const contentLength = Number(response.headers.get("content-length") || 0);
-    if (contentLength > 5_000_000) throw new Error("ESPN response exceeded 5MB");
-    const payload = await response.json();
-    const updates = extractScoreboardUpdates(payload, group.tour, group.date, checkedAt);
+    const attempts = await Promise.all(scoreboardDateCandidates(group.date).map(async (compactDate) => {
+      const url = `${ESPN_SCOREBOARD}/${group.tour.toLowerCase()}/scoreboard?dates=${compactDate}`;
+      try {
+        const response = await fetch(url, {
+          headers: SCOREBOARD_HEADERS,
+          signal: AbortSignal.timeout(15_000)
+        });
+        if (!response.ok) {
+          return { compactDate, httpStatus: response.status, error: `ESPN returned ${response.status}` };
+        }
+        const contentLength = Number(response.headers.get("content-length") || 0);
+        if (contentLength > 5_000_000) {
+          return { compactDate, httpStatus: response.status, error: "ESPN response exceeded 5MB" };
+        }
+        return { compactDate, httpStatus: response.status, payload: await response.json() };
+      } catch (error) {
+        return {
+          compactDate,
+          httpStatus: null,
+          error: error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160)
+        };
+      }
+    }));
+    const successful = attempts.filter((attempt) => attempt.payload);
+    const failed = attempts.filter((attempt) => attempt.error);
+    httpStatus = successful[0]?.httpStatus ?? failed[0]?.httpStatus ?? null;
+    if (!successful.length) {
+      throw new Error(failed.map((attempt) => `${attempt.compactDate}: ${attempt.error}`).join("; "));
+    }
+    if (failed.length) {
+      console.warn(JSON.stringify({
+        event: "adaptive_scoreboard_partial",
+        target: group.key,
+        failedDates: failed.map((attempt) => ({ date: attempt.compactDate, status: attempt.httpStatus }))
+      }));
+    }
+    const updateMap = new Map();
+    for (const attempt of successful) {
+      for (const item of extractScoreboardUpdates(attempt.payload, group.tour, group.date, checkedAt)) {
+        updateMap.set(item.id, item);
+      }
+    }
+    const updates = [...updateMap.values()];
     if (updates.some((item) => item.isUsOpen)) {
       try {
         const official = await fetchUsOpenLiveStats(group.date.slice(0, 4));
@@ -428,6 +460,7 @@ async function refreshScoreboardGroup(env, group, now) {
   console.log(JSON.stringify({
     event: "adaptive_scoreboard_request",
     target: group.key,
+    scoreboardDates: scoreboardDateCandidates(group.date),
     intervalMinutes: group.interval,
     dueReason: group.dueReason,
     status,

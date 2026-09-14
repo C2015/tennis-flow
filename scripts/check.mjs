@@ -18,6 +18,9 @@ const adaptive = await import(new URL("../src/adaptive.js", import.meta.url));
 const broadcasts = await import(new URL("../src/broadcasts.js", import.meta.url));
 const stats = await import(new URL("../src/stats.js", import.meta.url));
 if (adaptive.SCOREBOARD_HEADERS["user-agent"] !== "curl/8.7.1") throw new Error("ESPN-compatible user agent missing");
+if (adaptive.scoreboardDateCandidates("2026-09-14").join(",") !== "20260914,20260913,20260915") {
+  throw new Error("Cross-timezone scoreboard date candidates mismatch");
+}
 if (adaptive.pollingIntervalMinutes("Grand Slam", "US Open") !== 10) throw new Error("Major interval mismatch");
 if (adaptive.pollingIntervalMinutes("WTA 500", "Test") !== 30) throw new Error("500 interval mismatch");
 if (adaptive.pollingIntervalMinutes("Tour", "Test") !== 60) throw new Error("Tour interval mismatch");

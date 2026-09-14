@@ -3,6 +3,16 @@ export const SCOREBOARD_HEADERS = Object.freeze({
   "user-agent": "curl/8.7.1"
 });
 
+export function scoreboardDateCandidates(localDate) {
+  const center = new Date(`${localDate}T00:00:00Z`);
+  if (!Number.isFinite(center.getTime())) return [];
+  return [0, -1, 1].map((offset) => {
+    const candidate = new Date(center);
+    candidate.setUTCDate(candidate.getUTCDate() + offset);
+    return candidate.toISOString().slice(0, 10).replaceAll("-", "");
+  });
+}
+
 export function pollingIntervalMinutes(level, tournament) {
   const value = `${level || ""} ${tournament || ""}`.toLowerCase();
   if (/grand slam|1000|finals|olympic|australian open|roland garros|french open|wimbledon|us open/.test(value)) return 10;
