@@ -20,12 +20,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Check whether live scores need polling
+        id: preflight
+        run: node scripts/should_sync_live.mjs
+        env:
+          WORKER_SYNC_URL: ${{ secrets.WORKER_SYNC_URL }}
       - uses: actions/setup-python@v5
+        if: steps.preflight.outputs.should_sync == 'true'
         with:
           python-version: "3.12"
       - name: Collect recent tennis scores
+        if: steps.preflight.outputs.should_sync == 'true'
         run: python scripts/collect_open_data.py --live
       - name: Sync changed matches to Cloudflare D1
+        if: steps.preflight.outputs.should_sync == 'true'
         run: node scripts/sync_live.mjs
         env:
           WORKER_SYNC_URL: ${{ secrets.WORKER_SYNC_URL }}
