@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import re
 import unicodedata
 import urllib.request
@@ -464,8 +465,11 @@ def normalize(payload, start_date, end_date, requested_tour):
 def main():
     now = datetime.now(TIMEZONE)
     start_date = now.date() - timedelta(days=1)
-    end_date = now.date() + timedelta(days=7)
-    dates = [(start_date + timedelta(days=offset)).strftime("%Y%m%d") for offset in range(9)]
+    live = "--live" in sys.argv[1:]
+    if len(sys.argv) > 1 and (not live or len(sys.argv) != 2):
+        raise SystemExit("Usage: collect_open_data.py [--live]")
+    end_date = now.date() + timedelta(days=1 if live else 7)
+    dates = [(start_date + timedelta(days=offset)).strftime("%Y%m%d") for offset in range((end_date - start_date).days + 1)]
     requests = [
         (tour.upper(), SCOREBOARD.format(tour=tour, date=date))
         for date in dates for tour in ("atp", "wta")
@@ -477,10 +481,10 @@ def main():
             collected.update(normalize(payload, start_date, end_date, requested_tour))
 
     matches = sorted(collected.values(), key=lambda item: (item["date"], item["time"] or "99:99", item["id"]))[:300]
-    stats_count = enrich_us_open_stats(matches, start_date, end_date)
-    translated, total_players = enrich_chinese_names(matches)
-    output = {"source": "ESPN Tennis + US Open 官方统计", "updatedAt": now.isoformat(), "matches": matches}
-    output_path = Path(".sync/feed.json")
+    stats_count = 0 if live else enrich_us_open_stats(matches, start_date, end_date)
+    translated, total_players = (0, 0) if live else enrich_chinese_names(matches)
+    output = {"source": "ESPN Tennis live" if live else "ESPN Tennis + US Open 官方统计", "updatedAt": now.isoformat(), "matches": matches}
+    output_path = Path(".sync/live-feed.json" if live else ".sync/feed.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")
     print(f"Prepared {len(matches)} current matches from ESPN ({start_date}..{end_date}); official stats {stats_count}; Chinese names {translated}/{total_players}")
