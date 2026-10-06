@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tennis-flow-live-sync",
+  "main": "src/live-sync.js",
+  "workers_dev": false,
+  "compatibility_date": "2026-09-05",
+  "triggers": {
+    "crons": [
+      "0-59/1 * * * *"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tennis-flow-db",
+      "database_id": "d7492a73-1a1b-416c-aa35-695d79490eeb"
+    }
+  ],
+  "vars": {
+    "LIVE_TOUR": "ATP"
+  }
+}

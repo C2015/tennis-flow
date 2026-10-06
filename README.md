@@ -36,9 +36,10 @@ npm run dev
 
 1. 登录：`npx wrangler login`
 2. 创建 D1：`npx wrangler d1 create tennis-flow-db`
-3. 更新 `wrangler.jsonc` 中的 `database_id`
+3. 更新 `wrangler.jsonc`、`wrangler.live-sync.jsonc` 和 `wrangler.live-sync-wta.jsonc` 中的 `database_id`，三个 Worker 使用同一个 D1 数据库
 4. 初始化线上数据库：`npm run db:init:remote`
 5. 部署：`npm run deploy`
+6. 部署独立的比分同步 Worker：`npm run deploy:live`
 
 ## GitHub Actions 配置
 
@@ -51,11 +52,13 @@ npm run dev
 
 任务每 6 小时执行一次，也可以在 Actions 页面手动运行。工作流读取昨天到未来七天的 ATP/WTA 单打赛程与赛果，规范化后通过受保护接口写入 D1。
 
-## 自适应赛果检查
+## 轻量单场比分同步
 
-Cloudflare Worker 每 10 分钟唤醒一次，但不会每次都请求数据源。未到开赛时间不检查；开赛后，大满贯、ATP/WTA 1000、年终总决赛和奥运会每 10 分钟检查，ATP/WTA 500 每 30 分钟检查，其他及无法识别级别的赛事每 60 分钟检查。只把已完赛、取消或延期且内容发生变化的记录写入 D1；超过开赛时间 18 小时仍无结果时，交由 6 小时全量校准补漏。
+独立 Worker `tennis-flow-live-sync`（ATP）和 `tennis-flow-live-sync-wta`（WTA）分别使用对应的 live-sync 配置，每分钟触发。每场比赛距离上次检查至少 5 分钟才再次检查。它们直接读取 ESPN 单场球员配对、状态和两位球员的盘分资源，每场通常只有几 KB；每次最多处理 2 场，并优先处理最久未检查的比赛。每个巡回赛 5 分钟内最多检查 10 场，超过容量的比赛会在后续运行继续处理。所有变更合并成一次 D1 batch，比分不变时不会改写比赛记录。
 
-定时唤醒历史保存在 `adaptive_cron_runs`，实际访问数据源的历史保存在 `adaptive_sync_runs`，记录赛事分组、目标间隔、HTTP 状态、耗时和更新数量。历史保留 30 天。当同一 ATP/WTA 日期分组在运行中进入更高级别赛事时，会立即按新的更短间隔提频，不再等待旧的慢速计划。
+只检查已开赛 18 小时内或将在 30 分钟内开赛的已知比赛；当日没有准确开赛时间的比赛每小时探测一次。没有符合条件的比赛时不访问 ESPN。网站 Worker 的旧批量采集 Cron 已停用，网站接口继续使用同一个 D1。GitHub 的全量采集负责赛程发现及技术统计，增量 Action 可作为补充；Cloudflare 的实时比分同步无需等待 Actions。
+
+运行日志沿用 `adaptive_cron_runs`、`adaptive_sync_runs` 和 `adaptive_sync_state`，单场目标以 `match:espn-...` 标识，历史保留 30 天。接口异常、无效配对或空的进行中比分不会清除已有数据；来源确认换人时更新配对，并保持未换球员的比分方向。并发采集不能把已完赛比赛改回进行中，也不能覆盖更新时间更晚的数据。运行 `npm run check:live` 验证单场同步行为。
 
 ### 标准数据格式
 

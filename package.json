@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "deploy:live": "wrangler deploy --config wrangler.live-sync.jsonc && wrangler deploy --config wrangler.live-sync-wta.jsonc",
+    "check:live": "node --test scripts/test_live_sync.mjs",
     "build:embedded": "node scripts/build-embedded-worker.mjs",
     "db:init:local": "wrangler d1 execute tennis-flow-db --local --file=db/schema.sql && wrangler d1 execute tennis-flow-db --local --file=db/seed.sql",
     "db:init:remote": "wrangler d1 execute tennis-flow-db --remote --file=db/schema.sql && wrangler d1 execute tennis-flow-db --remote --file=db/seed.sql",
